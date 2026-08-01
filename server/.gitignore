@@ -1,0 +1,19 @@
+# Dependencies
+client/node_modules
+server/node_modules
+
+# Build
+client/dist
+
+# Environment Variables
+server/.env
+
+# Logs
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode
