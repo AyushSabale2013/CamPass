@@ -75,6 +75,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // Campus Status
+    isInsideCampus: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
@@ -83,4 +89,4 @@ const userSchema = new mongoose.Schema(
 
 const User = mongoose.model("User", userSchema);
 
-export default User;
+export default User;                                        
