@@ -8,26 +8,43 @@ import { googleLogin } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 
 const Login = () => {
-    console.log("CLIENT ID:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
+
     const navigate = useNavigate();
 
     const { login } = useAuth();
 
     const handleSuccess = async (credentialResponse) => {
+
         try {
+
             const response = await googleLogin(
                 credentialResponse.credential
             );
 
             const data = response.data;
 
-            console.log(data);
-
             // Existing Student
             if (data.isRegistered) {
+
                 login(data.user, data.token);
 
-                navigate("/student/dashboard");
+                // Check if user came from QR
+                const redirect =
+                    sessionStorage.getItem("redirectAfterLogin");
+
+                if (redirect) {
+
+                    sessionStorage.removeItem(
+                        "redirectAfterLogin"
+                    );
+
+                    navigate(redirect);
+
+                } else {
+
+                    navigate("/student/dashboard");
+
+                }
 
                 return;
             }
@@ -40,18 +57,23 @@ const Login = () => {
             );
 
             navigate("/complete-profile");
+
         } catch (error) {
+
             console.error(error);
 
             alert(
                 error.response?.data?.message ||
                 "Login Failed"
             );
+
         }
+
     };
 
     return (
         <PageContainer>
+
             <div className="flex flex-col justify-between min-h-screen px-8 py-12">
 
                 <Logo />
@@ -84,6 +106,7 @@ const Login = () => {
                 </div>
 
             </div>
+
         </PageContainer>
     );
 };

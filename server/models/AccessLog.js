@@ -1,7 +1,5 @@
 import mongoose from "mongoose";
 
-import mongoose from "mongoose";
-
 const entryLogSchema = new mongoose.Schema(
     {
         // References
@@ -95,6 +93,3 @@ const EntryLog = mongoose.model("EntryLog", entryLogSchema);
 
 export default EntryLog;
 
-const EntryLog = mongoose.model("EntryLog", entryLogSchema);
-
-export default EntryLog;

@@ -88,16 +88,35 @@ const CompleteProfile = () => {
 
       sessionStorage.removeItem("registrationToken");
 
-      navigate("/student/dashboard");
+      // Redirect back to QR page if user came from QR scan
+      const redirect =
+        sessionStorage.getItem("redirectAfterLogin");
+
+      if (redirect) {
+
+        sessionStorage.removeItem(
+          "redirectAfterLogin"
+        );
+
+        navigate(redirect);
+
+      } else {
+
+        navigate("/student/dashboard");
+
+      }
+
     } catch (error) {
+
       console.error(error);
 
       alert(
         error.response?.data?.message ||
-          "Registration Failed"
+        "Registration Failed"
       );
+
     }
-  };  return (
+  }; return (
     <PageContainer>
       <div className="min-h-screen p-6">
 
