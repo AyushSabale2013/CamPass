@@ -85,9 +85,6 @@ const CompleteProfile = () => {
       const data = response.data;
 
       login(data.user, data.token);
-
-      sessionStorage.removeItem("registrationToken");
-
       // Redirect back to QR page if user came from QR scan
       // Redirect to Gate Scanner
       const redirect =

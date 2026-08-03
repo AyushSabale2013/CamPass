@@ -27,7 +27,7 @@ const Login = () => {
 
         const redirect =
           sessionStorage.getItem("redirectAfterLogin") ||
-          "/student/dashboard";
+          "/gate/main-gate";
 
         sessionStorage.removeItem("redirectAfterLogin");
         navigate(redirect);
@@ -46,7 +46,7 @@ const Login = () => {
 
       alert(
         error.response?.data?.message ||
-          "Login Failed. Please check your network connection and try again."
+        "Login Failed. Please check your network connection and try again."
       );
     }
   };
