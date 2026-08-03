@@ -21,20 +21,32 @@ const Login = () => {
       const response = await googleLogin(credentialResponse.credential);
       const data = response.data;
 
-      // Existing Student
+      // Existing User Flow (Student, Security, or Admin)
       if (data.isRegistered) {
         login(data.user, data.token);
 
+        // Direct Role-Based Redirects
+        if (data.user?.role === "security") {
+          navigate("/security/dashboard", { replace: true });
+          return;
+        }
+
+        if (data.user?.role === "admin") {
+          navigate("/admin/dashboard", { replace: true });
+          return;
+        }
+
+        // Student Navigation Flow
         const redirect =
           sessionStorage.getItem("redirectAfterLogin") ||
-          "/gate/main-gate";
+          "/student/dashboard";
 
         sessionStorage.removeItem("redirectAfterLogin");
-        navigate(redirect);
+        navigate(redirect, { replace: true });
         return;
       }
 
-      // New Student Registration Flow
+      // New User Profile Completion Flow
       sessionStorage.setItem(
         "registrationToken",
         data.registrationToken
@@ -66,7 +78,7 @@ const Login = () => {
             Welcome
           </h2>
           <p className="mt-3 text-gray-500">
-            Login using your IIIT Pune Google account.
+            Login using your authorized Google account.
           </p>
         </div>
 
@@ -78,7 +90,7 @@ const Login = () => {
           />
 
           <p className="text-center text-sm text-gray-400">
-            Only IIIT Pune students can access CamPass.
+            Authorized IIIT Pune users and Security personnel only.
           </p>
         </div>
       </div>

@@ -21,3 +21,8 @@ export const getGateHistoryPage = ({ page = 1, limit = 15, status } = {}) => {
 
     return axios.get(`/gate/history?${params.toString()}`);
 };
+
+// Security Guard API Services
+export const getSecurityLogs = (type = "today", page = 1, limit = 50) => {
+    return axios.get(`/gate/security-logs?type=${type}&page=${page}&limit=${limit}`);
+};

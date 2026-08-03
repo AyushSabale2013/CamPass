@@ -7,6 +7,8 @@ import Dashboard from "../pages/student/Dashboard";
 import GateScanner from "../pages/student/GateScanner";
 import History from "../pages/student/History";
 
+import SecurityDashboard from "../pages/security/SecurityDashboard";
+
 import ProtectedRoute from "../components/common/ProtectedRoute";
 
 const AppRoutes = () => {
@@ -46,6 +48,17 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute role="student">
             <History />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Security Guard */}
+
+      <Route
+        path="/security/dashboard"
+        element={
+          <ProtectedRoute role="security">
+            <SecurityDashboard />
           </ProtectedRoute>
         }
       />

@@ -58,24 +58,62 @@ export const googleLogin = async (req, res) => {
             });
         }
 
-        // Allow only college email domains
-        const allowedDomains = process.env.COLLEGE_EMAIL_DOMAINS.split(",");
+        const normalizedEmail = email.trim().toLowerCase();
 
+        // 1. Parse allowed domains and test security emails from .env
+        const allowedDomains = (process.env.COLLEGE_EMAIL_DOMAINS || "")
+            .split(",")
+            .map((domain) => domain.trim().toLowerCase())
+            .filter(Boolean);
+
+        const testSecurityEmails = (process.env.TEST_SECURITY_EMAILS || "")
+            .split(",")
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean);
+
+        // 2. Determine email permissions
         const isValidCollegeEmail = allowedDomains.some((domain) =>
-            email.endsWith(domain.trim())
+            normalizedEmail.endsWith(domain)
         );
+        const isTestSecurityEmail = testSecurityEmails.includes(normalizedEmail);
 
-        if (!isValidCollegeEmail) {
+        // Reject if email belongs neither to college domains nor security test list
+        if (!isValidCollegeEmail && !isTestSecurityEmail) {
             return res.status(403).json({
                 success: false,
-                message: "Only IIIT Pune college email addresses are allowed.",
+                message: "Only IIIT Pune college email addresses or authorized personnel are allowed.",
             });
         }
 
-        // Check if student already exists
-        const user = await User.findOne({ email });
+        // Check if user already exists
+        let user = await User.findOne({ email: normalizedEmail });
 
-        // Existing User
+        // Auto-provision or sync Security Guard User
+        if (isTestSecurityEmail) {
+            if (!user) {
+                user = await User.create({
+                    googleId,
+                    name: name || "Security Guard",
+                    email: normalizedEmail,
+                    profilePicture: picture || "",
+                    mis: "MSF-9999", // MSF ID stored in mis field
+                    phone: "9999999999",
+                    userType: "dayscholar",
+                    hostel: "N/A",
+                    room: "N/A",
+                    role: "security",
+                    isInsideCampus: false,
+                    profileCompleted: true,
+                });
+            } else if (user.role !== "security") {
+                user.role = "security";
+                user.profileCompleted = true;
+                if (!user.mis) user.mis = "MSF-9999";
+                await user.save();
+            }
+        }
+
+        // Existing User (or newly auto-provisioned Security Guard)
         if (user) {
             const token = jwt.sign(
                 {
@@ -97,12 +135,12 @@ export const googleLogin = async (req, res) => {
             });
         }
 
-        // New User
+        // New Student User Flow
         const registrationToken = jwt.sign(
             {
                 googleId,
                 name,
-                email,
+                email: normalizedEmail,
                 profilePicture: picture,
             },
             process.env.JWT_SECRET,
@@ -119,7 +157,7 @@ export const googleLogin = async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Google Login Error:", error);
 
         return res.status(500).json({
             success: false,
@@ -128,9 +166,7 @@ export const googleLogin = async (req, res) => {
     }
 };
 
-
-
-// Register
+// Register Student
 export const registerStudent = async (req, res) => {
     try {
         const {
@@ -251,7 +287,7 @@ export const registerStudent = async (req, res) => {
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Student Registration Error:", error);
 
         return res.status(500).json({
             success: false,
@@ -259,7 +295,6 @@ export const registerStudent = async (req, res) => {
         });
     }
 };
-
 
 // Get current user
 export const getCurrentUser = async (req, res) => {

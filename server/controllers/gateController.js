@@ -22,10 +22,6 @@ const isSameDay = (a, b) => {
  *
  * Returns just the gate's coordinates/radius/name so the client can
  * show a live GPS distance before the student taps the action button.
- * Student profile fields already live in AuthContext on the frontend,
- * so they aren't duplicated here.
- *
- * Requires a valid JWT (protect middleware should populate req.user).
  */
 export const getGateDetails = async (req, res) => {
   try {
@@ -111,7 +107,7 @@ export const verifyGate = async (req, res) => {
       });
     }
 
-    // --- Student lookup (req.user set by the protect middleware) ---
+    // --- Student lookup ---
 
     const user = await User.findById(req.user._id);
 
@@ -153,15 +149,11 @@ export const verifyGate = async (req, res) => {
       }
     }
 
-    // --- Determine action from current state (this alone prevents
-    //     "impossible" actions like a second ENTRY while already
-    //     inside, since the action is derived server-side, never
-    //     taken from the client) ---
+    // --- Determine action from current state ---
 
     const action = user.isInsideCampus ? "EXIT" : "ENTRY";
 
-    // --- Reason must be valid for whichever direction this actually
-    //     is (ENTRY reasons and EXIT reasons are different lists) ---
+    // --- Reason validation ---
 
     const validReasons = action === "ENTRY" ? ENTRY_REASONS : EXIT_REASONS;
 
@@ -172,7 +164,7 @@ export const verifyGate = async (req, res) => {
       });
     }
 
-    // --- Daily ENTRY / EXIT limit (resets when the calendar day changes) ---
+    // --- Daily limit check ---
 
     const today = new Date();
     const sameDay = isSameDay(user.dailyCountDate, today);
@@ -248,15 +240,13 @@ export const verifyGate = async (req, res) => {
 /**
  * GET /api/gate/history?limit=5&page=1&status=IN|OUT
  *
- * Returns the current student's ENTRY/EXIT logs, newest first.
- * Used by both the dashboard's "Recent Pass Logs" card (page=1, small
- * limit) and the full History page (paginated, optional status filter).
+ * Returns student logs, newest first.
  */
 export const getRecentLogs = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 5, 50);
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-    const { status } = req.query; // optional: "IN" | "OUT"
+    const { status } = req.query;
 
     const filter = { userId: req.user._id };
 
@@ -290,6 +280,129 @@ export const getRecentLogs = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+/**
+ * GET /api/gate/security-logs?type=today|all&section=all|hostelers_outside|dayscholars_inside&page=1&limit=200
+ *
+ * For Security Guards to view real-time student logs and campus status.
+ * Deduplicates records so each student appears only ONCE with their latest scan log.
+ */
+export const getSecurityLogs = async (req, res) => {
+  try {
+    const type = req.query.type || "today"; // "today" | "all"
+    const section = req.query.section || "all"; // "all" | "hostelers_outside" | "dayscholars_inside"
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+
+    const filter = {};
+
+    if (type === "today") {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      filter.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    // Fetch all logs sorted newest first
+    const rawLogs = await EntryLog.find(filter)
+      .populate("userId", "userType isInsideCampus hostel room phone")
+      .sort({ createdAt: -1 });
+
+    // Deduplicate: Keep ONLY the most recent log per student
+    const seenUsers = new Set();
+    const uniqueLogs = [];
+
+    for (const log of rawLogs) {
+      const userIdStr = log.userId ? log.userId._id.toString() : log.mis || log.email;
+      if (!seenUsers.has(userIdStr)) {
+        seenUsers.add(userIdStr);
+        uniqueLogs.push(log);
+      }
+    }
+
+    // For status views (outside/inside), use deduplicated logs; for raw stream view, keep full logs
+    const logsToProcess =
+      section === "hostelers_outside" || section === "dayscholars_inside"
+        ? uniqueLogs
+        : rawLogs;
+
+    const formattedLogs = logsToProcess.map((log) => {
+      const student = log.userId;
+
+      // Determine Day Scholar Status
+      const isDayScholar =
+        student?.userType === "dayscholar" ||
+        log.hostel === "Day Scholar" ||
+        student?.hostel === "Day Scholar";
+
+      const isInside = student ? student.isInsideCampus : log.status === "IN";
+
+      return {
+        _id: log._id,
+        id: log._id,
+        name: log.name,
+        studentName: log.name,
+        mis: log.mis,
+        studentMis: log.mis,
+        phone: student?.phone || log.phone || "N/A",
+        studentPhone: student?.phone || log.phone || "N/A",
+        userType: isDayScholar ? "dayscholar" : "hosteller",
+        hostel: isDayScholar ? "DS" : log.hostel || student?.hostel || "N/A",
+        room: isDayScholar ? "DS" : log.room || student?.room || "N/A",
+        gateName: log.gateName,
+        status: log.status, // "IN" | "OUT"
+        isInsideCampus: isInside,
+        reason: log.reason,
+        additionalNote: log.additionalNote,
+        distance: log.distance,
+        createdAt: log.createdAt,
+      };
+    });
+
+    // Apply specific section filtering
+    let filteredLogs = formattedLogs;
+
+    if (section === "hostelers_outside") {
+      // Hostelers currently outside campus
+      filteredLogs = formattedLogs.filter(
+        (log) => log.userType === "hosteller" && !log.isInsideCampus
+      );
+    } else if (section === "dayscholars_inside") {
+      // Day Scholars currently inside campus
+      filteredLogs = formattedLogs.filter(
+        (log) => log.userType === "dayscholar" && log.isInsideCampus
+      );
+    }
+
+    // Pagination after filtering
+    const total = filteredLogs.length;
+    const startIndex = (page - 1) * limit;
+    const paginatedLogs = filteredLogs.slice(startIndex, startIndex + limit);
+
+    return res.status(200).json({
+      success: true,
+      sectionTitle:
+        section === "hostelers_outside"
+          ? "Hostelers Outside Campus"
+          : section === "dayscholars_inside"
+          ? "Day Scholars Inside Campus"
+          : "All Gate Logs",
+      logs: paginatedLogs,
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total,
+    });
+  } catch (error) {
+    console.error("Security logs fetch error:", error);
     return res.status(500).json({
       success: false,
       message: "Server Error",
