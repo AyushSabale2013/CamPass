@@ -8,7 +8,15 @@ import accessLogRoutes from "./routes/accessLogRoutes.js";
 const app = express();
 
 // Middlewares
-app.use(cors());
+app.use(
+    cors({
+        origin: [
+            "http://localhost:5173",
+            "https://cam-pass-pi.vercel.app",
+        ],
+        credentials: true,
+    })
+);
 app.use(express.json());
 
 // Routes
