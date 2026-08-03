@@ -89,22 +89,15 @@ const CompleteProfile = () => {
       sessionStorage.removeItem("registrationToken");
 
       // Redirect back to QR page if user came from QR scan
+      // Redirect to Gate Scanner
       const redirect =
-        sessionStorage.getItem("redirectAfterLogin");
+        sessionStorage.getItem("redirectAfterLogin") ||
+        "/gate/main-gate"; // Replace with your default gate slug
 
-      if (redirect) {
+      sessionStorage.removeItem("registrationToken");
+      sessionStorage.removeItem("redirectAfterLogin");
 
-        sessionStorage.removeItem(
-          "redirectAfterLogin"
-        );
-
-        navigate(redirect);
-
-      } else {
-
-        navigate("/student/dashboard");
-
-      }
+      navigate(redirect, { replace: true });
 
     } catch (error) {
 

@@ -1,13 +1,291 @@
-const Dashboard = () => {
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { getGateHistory } from "../../services/gateService";
+import { formatLogDate, formatLogTime } from "../../utils/logFormat";
+import Loader from "../../components/common/Loader";
+
+/** Skeleton row shown while history is loading */
+const HistorySkeletonRow = () => (
+  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 animate-pulse">
+    <div className="flex items-center gap-3">
+      <div className="w-8 h-8 rounded-xl bg-slate-200 shrink-0" />
+      <div className="space-y-1.5">
+        <div className="h-2.5 w-24 bg-slate-200 rounded" />
+        <div className="h-2 w-16 bg-slate-200 rounded" />
+      </div>
+    </div>
+    <div className="space-y-1.5 text-right">
+      <div className="h-2.5 w-14 bg-slate-200 rounded ml-auto" />
+      <div className="h-2 w-10 bg-slate-200 rounded ml-auto" />
+    </div>
+  </div>
+);
+
+const StudentDashboard = () => {
+  const navigate = useNavigate();
+  const { user, loading, logout } = useAuth();
+  const [now, setNow] = useState(new Date());
+
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+
+  // Clock tick for live display
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const loadHistory = async () => {
+    setHistoryError("");
+    setHistoryLoading(true);
+
+    try {
+      const response = await getGateHistory(5);
+      setHistory(response.data.logs || []);
+    } catch (err) {
+      setHistoryError(
+        err.response?.data?.message || "Couldn't load recent activity."
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <Loader />
+      </div>
+    );
+  }
+
+  const isInside = user?.isInsideCampus ?? true;
+
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans">
+      {/* Navigation Header */}
+      <header className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md text-white border-b border-slate-800 px-4 py-3 shadow-md">
+        <div className="max-w-md mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center font-black text-sm text-white">
+              CP
+            </div>
+            <span className="font-bold text-sm text-slate-100 tracking-tight">
+              CamPass
+            </span>
+          </div>
 
-      <h1 className="text-3xl font-bold">
-        Student Dashboard
-      </h1>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-medium text-slate-400 hidden sm:inline">
+              {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+            </span>
+            <button
+              onClick={logout}
+              className="text-xs font-semibold bg-slate-800 hover:bg-rose-900/40 hover:text-rose-300 active:scale-95 text-slate-300 px-3 py-1.5 rounded-full border border-slate-700 transition-all"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
 
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-4 pb-12">
+        {/* Student Profile Overview */}
+        <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-center gap-4">
+          {user?.profilePicture ? (
+            <img
+              src={user.profilePicture}
+              alt={user.name || "Student"}
+              referrerPolicy="no-referrer"
+              className="w-16 h-16 rounded-2xl object-cover ring-2 ring-blue-100 shadow-sm"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-xl flex items-center justify-center shadow-md shadow-blue-500/20">
+              {user?.name ? user.name.charAt(0).toUpperCase() : "S"}
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="text-lg font-bold text-slate-900 truncate">
+                {user?.name || "Student Dashboard"}
+              </h1>
+            </div>
+            <p className="text-xs text-slate-500 font-medium truncate mt-0.5">
+              MIS: {user?.mis || "N/A"} • Room: {user?.room || "N/A"}
+            </p>
+            <p className="text-[11px] text-slate-400 font-medium truncate">
+              {user?.email || "student@college.edu"}
+            </p>
+          </div>
+        </div>
+
+        {/* Live Campus Status Banner */}
+        <div
+          className={`rounded-3xl p-5 shadow-sm border transition-all duration-300 relative overflow-hidden ${
+            isInside
+              ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200/80"
+              : "bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border-indigo-200/80"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
+                Current Live Status
+              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`w-3 h-3 rounded-full ${
+                    isInside ? "bg-emerald-500 animate-pulse" : "bg-indigo-500"
+                  }`}
+                />
+                <span
+                  className={`text-lg font-black tracking-tight ${
+                    isInside ? "text-emerald-700" : "text-indigo-700"
+                  }`}
+                >
+                  {isInside ? "INSIDE CAMPUS" : "OUTSIDE CAMPUS"}
+                </span>
+              </div>
+            </div>
+
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                isInside
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-indigo-100 text-indigo-800"
+              }`}
+            >
+              {isInside ? "Exit Allowed" : "Entry Allowed"}
+            </span>
+          </div>
+        </div>
+
+        {/* Quick Scan Action Card */}
+        <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+          <h2 className="text-sm font-bold text-slate-900 mb-1">
+            Gate Verification
+          </h2>
+          <p className="text-xs text-slate-500 mb-4">
+            Scan a QR code or select a gate to log your entry or exit.
+          </p>
+
+          <button
+            onClick={() => navigate("/gate/main-gate")}
+            className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-98 shadow-md shadow-slate-900/10"
+          >
+            <svg
+              className="w-4 h-4 text-blue-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2.5"
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Simulate Gate Scanner
+          </button>
+        </div>
+
+        {/* Recent Pass Logs History */}
+        <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-slate-900">Recent Pass Logs</h2>
+            <button
+              onClick={() => navigate("/student/history")}
+              className="text-[11px] font-semibold text-blue-600 hover:underline"
+            >
+              View All
+            </button>
+          </div>
+
+          {historyLoading && (
+            <div className="space-y-3">
+              <HistorySkeletonRow />
+              <HistorySkeletonRow />
+              <HistorySkeletonRow />
+            </div>
+          )}
+
+          {!historyLoading && historyError && (
+            <div className="text-center py-6">
+              <p className="text-xs text-rose-600 font-medium mb-3">
+                {historyError}
+              </p>
+              <button
+                onClick={loadHistory}
+                className="text-[11px] font-semibold text-blue-600 hover:underline"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {!historyLoading && !historyError && history.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-xs text-slate-400 font-medium">
+                No gate activity yet.
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Scan a gate to see your entries and exits here.
+              </p>
+            </div>
+          )}
+
+          {!historyLoading && !historyError && history.length > 0 && (
+            <div className="space-y-3">
+              {history.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className={`w-8 h-8 rounded-xl font-black text-[10px] flex items-center justify-center shrink-0 ${
+                        item.status === "IN"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-indigo-100 text-indigo-700"
+                      }`}
+                    >
+                      {item.status === "IN" ? "IN" : "OUT"}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 truncate">
+                        {item.gateName}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-medium truncate">
+                        {item.reason}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0 pl-2">
+                    <p className="font-semibold text-slate-700">
+                      {formatLogTime(item.createdAt)}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      {formatLogDate(item.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 };
 
-export default Dashboard;
+export default StudentDashboard;

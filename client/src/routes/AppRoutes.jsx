@@ -5,6 +5,7 @@ import CompleteProfile from "../pages/auth/CompleteProfile";
 
 import Dashboard from "../pages/student/Dashboard";
 import GateScanner from "../pages/student/GateScanner";
+import History from "../pages/student/History";
 
 import ProtectedRoute from "../components/common/ProtectedRoute";
 
@@ -36,6 +37,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute role="student">
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/history"
+        element={
+          <ProtectedRoute role="student">
+            <History />
           </ProtectedRoute>
         }
       />

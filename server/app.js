@@ -3,6 +3,7 @@ import cors from "cors";
 
 import authRoutes from "./routes/authRoutes.js";
 import gateRoutes from "./routes/gateRoutes.js";
+import accessLogRoutes from "./routes/accessLogRoutes.js";
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/gate", gateRoutes);
+app.use("/api/access-log", accessLogRoutes);
 
 // Test Route
 app.get("/", (req, res) => {

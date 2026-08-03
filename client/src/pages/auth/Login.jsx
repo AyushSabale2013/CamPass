@@ -8,107 +8,82 @@ import { googleLogin } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
-    const navigate = useNavigate();
+  const handleSuccess = async (credentialResponse) => {
+    try {
+      if (!credentialResponse?.credential) {
+        alert("Google authentication failed. Missing credentials.");
+        return;
+      }
 
-    const { login } = useAuth();
+      const response = await googleLogin(credentialResponse.credential);
+      const data = response.data;
 
-    const handleSuccess = async (credentialResponse) => {
+      // Existing Student
+      if (data.isRegistered) {
+        login(data.user, data.token);
 
-        try {
+        const redirect =
+          sessionStorage.getItem("redirectAfterLogin") ||
+          "/student/dashboard";
 
-            const response = await googleLogin(
-                credentialResponse.credential
-            );
+        sessionStorage.removeItem("redirectAfterLogin");
+        navigate(redirect);
+        return;
+      }
 
-            const data = response.data;
+      // New Student Registration Flow
+      sessionStorage.setItem(
+        "registrationToken",
+        data.registrationToken
+      );
 
-            // Existing Student
-            if (data.isRegistered) {
+      navigate("/complete-profile");
+    } catch (error) {
+      console.error("Login Handler Error:", error);
 
-                login(data.user, data.token);
+      alert(
+        error.response?.data?.message ||
+          "Login Failed. Please check your network connection and try again."
+      );
+    }
+  };
 
-                // Check if user came from QR
-                const redirect =
-                    sessionStorage.getItem("redirectAfterLogin");
+  const handleError = () => {
+    console.error("Google Login Component Error");
+    alert("Google Sign-In failed or was closed. Please try again.");
+  };
 
-                if (redirect) {
+  return (
+    <PageContainer>
+      <div className="flex flex-col justify-between min-h-screen px-8 py-12">
+        <Logo />
 
-                    sessionStorage.removeItem(
-                        "redirectAfterLogin"
-                    );
+        <div>
+          <h2 className="text-3xl font-bold text-slate-900">
+            Welcome
+          </h2>
+          <p className="mt-3 text-gray-500">
+            Login using your IIIT Pune Google account.
+          </p>
+        </div>
 
-                    navigate(redirect);
+        <div className="flex flex-col items-center gap-4">
+          <GoogleLogin
+            onSuccess={handleSuccess}
+            onError={handleError}
+            useOneTap
+          />
 
-                } else {
-
-                    navigate("/student/dashboard");
-
-                }
-
-                return;
-            }
-
-            // New Student
-
-            sessionStorage.setItem(
-                "registrationToken",
-                data.registrationToken
-            );
-
-            navigate("/complete-profile");
-
-        } catch (error) {
-
-            console.error(error);
-
-            alert(
-                error.response?.data?.message ||
-                "Login Failed"
-            );
-
-        }
-
-    };
-
-    return (
-        <PageContainer>
-
-            <div className="flex flex-col justify-between min-h-screen px-8 py-12">
-
-                <Logo />
-
-                <div>
-
-                    <h2 className="text-3xl font-bold">
-                        Welcome
-                    </h2>
-
-                    <p className="mt-3 text-gray-500">
-                        Login using your IIIT Pune Google account.
-                    </p>
-
-                </div>
-
-                <div className="flex flex-col items-center gap-4">
-
-                    <GoogleLogin
-                        onSuccess={handleSuccess}
-                        onError={() => {
-                            alert("Google Login Failed");
-                        }}
-                    />
-
-                    <p className="text-center text-sm text-gray-400">
-                        Only IIIT Pune students can access CamPass.
-                    </p>
-
-                </div>
-
-            </div>
-
-        </PageContainer>
-    );
+          <p className="text-center text-sm text-gray-400">
+            Only IIIT Pune students can access CamPass.
+          </p>
+        </div>
+      </div>
+    </PageContainer>
+  );
 };
 
 export default Login;

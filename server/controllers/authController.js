@@ -2,6 +2,30 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { verifyGoogleToken } from "../services/googleAuthService.js";
 
+// Single source of truth for what a "user" object looks like on the wire.
+// googleLogin, registerStudent, and getCurrentUser must all return the
+// same shape — otherwise AuthContext's user object is incomplete right
+// after login/register (fields stay undefined until a later loadUser()
+// call happens to run).
+const buildUserResponse = (user) => ({
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    profilePicture: user.profilePicture,
+
+    mis: user.mis,
+    phone: user.phone,
+    userType: user.userType,
+    hostel: user.hostel,
+    room: user.room,
+
+    isInsideCampus: user.isInsideCampus,
+
+    profileCompleted: user.profileCompleted,
+
+    createdAt: user.createdAt,
+});
 
 // Google login
 export const googleLogin = async (req, res) => {
@@ -69,13 +93,7 @@ export const googleLogin = async (req, res) => {
                 isRegistered: true,
                 message: "Login Successful",
                 token,
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    profilePicture: user.profilePicture,
-                    role: user.role,
-                },
+                user: buildUserResponse(user),
             });
         }
 
@@ -132,11 +150,27 @@ export const registerStudent = async (req, res) => {
             });
         }
 
+        if (userType === "hosteller" && (!hostel || !room)) {
+            return res.status(400).json({
+                success: false,
+                message: "Hostel and room are required for hostellers.",
+            });
+        }
+
         // Verify Registration Token
-        const googleUser = jwt.verify(
-            registrationToken,
-            process.env.JWT_SECRET
-        );
+        let googleUser;
+
+        try {
+            googleUser = jwt.verify(
+                registrationToken,
+                process.env.JWT_SECRET
+            );
+        } catch (tokenError) {
+            return res.status(401).json({
+                success: false,
+                message: "Registration session expired. Please log in again.",
+            });
+        }
 
         const {
             googleId,
@@ -178,6 +212,7 @@ export const registerStudent = async (req, res) => {
         const user = await User.create({
             googleId,
             profilePicture,
+
             name,
             email,
 
@@ -185,10 +220,15 @@ export const registerStudent = async (req, res) => {
             phone,
 
             userType,
+
             hostel: finalHostel,
             room: finalRoom,
 
             role: "student",
+
+            isInsideCampus: false,
+
+            profileCompleted: true,
         });
 
         // Generate Login JWT
@@ -207,12 +247,7 @@ export const registerStudent = async (req, res) => {
             success: true,
             message: "Registration Successful",
             token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-            },
+            user: buildUserResponse(user),
         });
 
     } catch (error) {
@@ -231,18 +266,7 @@ export const getCurrentUser = async (req, res) => {
     try {
         return res.status(200).json({
             success: true,
-            user: {
-                id: req.user._id,
-                name: req.user.name,
-                email: req.user.email,
-                role: req.user.role,
-                profilePicture: req.user.profilePicture,
-                mis: req.user.mis,
-                phone: req.user.phone,
-                userType: req.user.userType,
-                hostel: req.user.hostel,
-                room: req.user.room,
-            },
+            user: buildUserResponse(req.user),
         });
     } catch (error) {
         return res.status(500).json({

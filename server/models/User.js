@@ -1,92 +1,82 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
-  {
-    // Google Authentication
-    googleId: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
+    {
+        googleId: {
+            type: String,
+            required: true,
+            unique: true,
+        },
 
-    profilePicture: {
-      type: String,
-      default: "",
-    },
+        profilePicture: {
+            type: String,
+            default: "",
+        },
 
-    // Basic Information
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+        name: {
+            type: String,
+            required: true,
+            trim: true,
+        },
 
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
+        email: {
+            type: String,
+            required: true,
+            unique: true,
+            lowercase: true,
+            trim: true,
+        },
 
-    // Password (Only for Admin & Security)
-    password: {
-      type: String,
-      select: false,
-    },
+        mis: {
+            type: String,
+            required: true,
+            unique: true,
+            trim: true,
+        },
 
-    // Student Information
-    mis: {
-      type: String,
-      unique: true,
-      sparse: true,
-      trim: true,
-    },
+        phone: {
+            type: String,
+            required: true,
+            trim: true,
+        },
 
-    phone: {
-      type: String,
-      trim: true,
-    },
+        userType: {
+            type: String,
+            enum: ["hosteller", "dayscholar"],
+            required: true,
+        },
 
-    userType: {
-      type: String,
-      enum: ["hosteller", "dayscholar"],
-    },
+        hostel: {
+            type: String,
+            required: true,
+            trim: true,
+        },
 
-    hostel: {
-      type: String,
-      default: "Day Scholar",
-    },
+        room: {
+            type: String,
+            required: true,
+            trim: true,
+        },
 
-    room: {
-      type: String,
-      default: "Day Scholar",
-    },
+        role: {
+            type: String,
+            enum: ["student", "security", "admin"],
+            default: "student",
+        },
 
-    // Role
-    role: {
-      type: String,
-      enum: ["student", "security", "admin"],
-      default: "student",
-    },
+        profileCompleted: {
+            type: Boolean,
+            default: false,
+        },
 
-    // First Login Check
-    profileCompleted: {
-      type: Boolean,
-      default: false,
+        isInsideCampus: {
+            type: Boolean,
+            default: false,
+        },
     },
-
-    // Campus Status
-    isInsideCampus: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  {
-    timestamps: true,
-  }
+    {
+        timestamps: true,
+    }
 );
 
-const User = mongoose.model("User", userSchema);
-
-export default User;                                        
+export default mongoose.model("User", userSchema);

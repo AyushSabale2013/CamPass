@@ -1,10 +1,15 @@
 import express from "express";
-import { verifyGate } from "../controllers/gateController.js";
+import {
+  getGateDetails,
+  verifyGate,
+  getRecentLogs,
+} from "../controllers/gateController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// POST /api/gate/verify
+router.get("/details/:slug", protect, getGateDetails);
 router.post("/verify", protect, verifyGate);
+router.get("/history", protect, getRecentLogs);
 
 export default router;
