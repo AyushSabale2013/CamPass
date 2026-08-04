@@ -8,6 +8,7 @@ import GateScanner from "../pages/student/GateScanner";
 import History from "../pages/student/History";
 
 import SecurityDashboard from "../pages/security/SecurityDashboard";
+import AdminDashboard from "../pages/admin/AdminDashboard";
 
 import ProtectedRoute from "../components/common/ProtectedRoute";
 
@@ -17,20 +18,9 @@ const AppRoutes = () => {
 
       {/* Public Routes */}
 
-      <Route
-        path="/"
-        element={<Login />}
-      />
-
-      <Route
-        path="/complete-profile"
-        element={<CompleteProfile />}
-      />
-
-      <Route
-        path="/gate/:slug"
-        element={<GateScanner />}
-      />
+      <Route path="/" element={<Login />} />
+      <Route path="/complete-profile" element={<CompleteProfile />} />
+      <Route path="/gate/:slug" element={<GateScanner />} />
 
       {/* Student */}
 
@@ -59,6 +49,17 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute role="security">
             <SecurityDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin */}
+
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute role="admin">
+            <AdminDashboard />
           </ProtectedRoute>
         }
       />

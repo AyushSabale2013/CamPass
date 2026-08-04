@@ -144,35 +144,32 @@ const GpsCard = ({ gpsStatus, gpsVerified, distance, allowedRadius }) => {
         </span>
         <div className="relative flex h-3 w-3">
           <span
-            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-              gpsVerified
+            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${gpsVerified
                 ? "bg-emerald-400"
                 : gpsStatus === "denied"
-                ? "bg-rose-400"
-                : "bg-amber-400"
-            }`}
+                  ? "bg-rose-400"
+                  : "bg-amber-400"
+              }`}
           />
           <span
-            className={`relative inline-flex rounded-full h-3 w-3 ${
-              gpsVerified
+            className={`relative inline-flex rounded-full h-3 w-3 ${gpsVerified
                 ? "bg-emerald-500"
                 : gpsStatus === "denied"
-                ? "bg-rose-500"
-                : "bg-amber-500"
-            }`}
+                  ? "bg-rose-500"
+                  : "bg-amber-500"
+              }`}
           />
         </div>
       </div>
 
       <div className="flex items-center gap-3">
         <div
-          className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-            gpsVerified
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${gpsVerified
               ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
               : gpsStatus === "denied"
-              ? "bg-rose-50 text-rose-600 border border-rose-200"
-              : "bg-amber-50 text-amber-600 border border-amber-200"
-          }`}
+                ? "bg-rose-50 text-rose-600 border border-rose-200"
+                : "bg-amber-50 text-amber-600 border border-amber-200"
+            }`}
         >
           <svg
             className="w-6 h-6"
@@ -252,11 +249,10 @@ const GpsCard = ({ gpsStatus, gpsVerified, distance, allowedRadius }) => {
 /** Current Campus Status Card */
 const CampusStatusCard = ({ isInsideCampus }) => (
   <div
-    className={`rounded-3xl p-5 shadow-sm border transition-all duration-300 relative overflow-hidden ${
-      isInsideCampus
+    className={`rounded-3xl p-5 shadow-sm border transition-all duration-300 relative overflow-hidden ${isInsideCampus
         ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200/80"
         : "bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border-indigo-200/80"
-    }`}
+      }`}
   >
     <div className="flex items-center justify-between">
       <div>
@@ -265,14 +261,12 @@ const CampusStatusCard = ({ isInsideCampus }) => (
         </span>
         <div className="flex items-center gap-2">
           <span
-            className={`w-3 h-3 rounded-full ${
-              isInsideCampus ? "bg-emerald-500 animate-pulse" : "bg-indigo-500"
-            }`}
+            className={`w-3 h-3 rounded-full ${isInsideCampus ? "bg-emerald-500 animate-pulse" : "bg-indigo-500"
+              }`}
           />
           <span
-            className={`text-lg font-black tracking-tight ${
-              isInsideCampus ? "text-emerald-700" : "text-indigo-700"
-            }`}
+            className={`text-lg font-black tracking-tight ${isInsideCampus ? "text-emerald-700" : "text-indigo-700"
+              }`}
           >
             {isInsideCampus ? "INSIDE CAMPUS" : "OUTSIDE CAMPUS"}
           </span>
@@ -281,11 +275,10 @@ const CampusStatusCard = ({ isInsideCampus }) => (
 
       <div className="text-right">
         <span
-          className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-            isInsideCampus
+          className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isInsideCampus
               ? "bg-emerald-100 text-emerald-800"
               : "bg-indigo-100 text-indigo-800"
-          }`}
+            }`}
         >
           {isInsideCampus ? "Ready for Exit" : "Ready for Entry"}
         </span>
@@ -315,10 +308,9 @@ const StandardReasonsCard = ({ isInside, options, reason, setReason }) => (
             onClick={() => setReason(val)}
             className={`
               p-3 rounded-2xl border text-left transition-all duration-200 active:scale-95
-              ${
-                selected
-                  ? "border-blue-600 bg-blue-50/80 text-blue-900 ring-2 ring-blue-600/20 shadow-sm font-bold"
-                  : "border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50 font-medium"
+              ${selected
+                ? "border-blue-600 bg-blue-50/80 text-blue-900 ring-2 ring-blue-600/20 shadow-sm font-bold"
+                : "border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50 font-medium"
               }
             `}
           >
@@ -336,11 +328,10 @@ const OtherReasonCard = ({ reason, setReason, note, setNote }) => {
 
   return (
     <div
-      className={`rounded-3xl p-5 shadow-sm border transition-all duration-200 ${
-        selected
+      className={`rounded-3xl p-5 shadow-sm border transition-all duration-200 ${selected
           ? "bg-rose-50/50 border-rose-300 ring-2 ring-rose-500/20"
           : "bg-white border-slate-100"
-      }`}
+        }`}
     >
       <div className="mb-3">
         <h3 className="text-sm font-bold text-slate-900">Something Else</h3>
@@ -354,18 +345,16 @@ const OtherReasonCard = ({ reason, setReason, note, setNote }) => {
         onClick={() => setReason(NOTE_REASON)}
         className={`
           w-full p-3.5 rounded-2xl border text-left transition-all duration-200 active:scale-95 flex items-center justify-between
-          ${
-            selected
-              ? "border-rose-600 bg-rose-600 text-white font-bold shadow-md shadow-rose-600/20"
-              : "border-slate-200/80 bg-slate-50 text-slate-800 hover:bg-slate-100 font-semibold"
+          ${selected
+            ? "border-rose-600 bg-rose-600 text-white font-bold shadow-md shadow-rose-600/20"
+            : "border-slate-200/80 bg-slate-50 text-slate-800 hover:bg-slate-100 font-semibold"
           }
         `}
       >
         <span className="text-xs uppercase tracking-wider">Other</span>
         <span
-          className={`text-xs px-2 py-0.5 rounded-full ${
-            selected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
-          }`}
+          className={`text-xs px-2 py-0.5 rounded-full ${selected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+            }`}
         >
           Custom Reason
         </span>
@@ -637,8 +626,7 @@ const GateScanner = () => {
 
     if (!gpsVerified) {
       setError(
-        `Outside gate area. You are ${Math.round(distance)}m away (Radius limit: ${
-          gate?.radius || 200
+        `Outside gate area. You are ${Math.round(distance)}m away (Radius limit: ${gate?.radius || 200
         }m).`
       );
       return;
@@ -669,7 +657,7 @@ const GateScanner = () => {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Verification failed. Please check network connection and try again."
+        "Verification failed. Please check network connection and try again."
       );
     } finally {
       setSubmitting(false);
@@ -689,6 +677,7 @@ const GateScanner = () => {
   }
 
   if (!isAuthenticated) {
+    // Save current gate URL so login redirects back through GateJunction
     sessionStorage.setItem("redirectAfterLogin", `/gate/${slug}`);
     return <Navigate to="/" replace />;
   }
@@ -762,10 +751,9 @@ const GateScanner = () => {
             className={`
               w-full py-4 px-6 rounded-2xl font-black text-sm uppercase tracking-wider text-white shadow-lg transition-all duration-200 active:scale-98
               disabled:opacity-50 disabled:cursor-not-allowed
-              ${
-                isInside
-                  ? "bg-slate-900 hover:bg-slate-800 shadow-slate-900/20"
-                  : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/25"
+              ${isInside
+                ? "bg-slate-900 hover:bg-slate-800 shadow-slate-900/20"
+                : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/25"
               }
             `}
           >
