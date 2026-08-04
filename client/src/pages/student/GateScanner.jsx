@@ -677,7 +677,6 @@ const GateScanner = () => {
   }
 
   if (!isAuthenticated) {
-    // Save current gate URL so login redirects back through GateJunction
     sessionStorage.setItem("redirectAfterLogin", `/gate/${slug}`);
     return <Navigate to="/" replace />;
   }
