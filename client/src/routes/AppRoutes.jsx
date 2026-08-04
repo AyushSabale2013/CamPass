@@ -10,6 +10,8 @@ import History from "../pages/student/History";
 import SecurityDashboard from "../pages/security/SecurityDashboard";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 
+import GateJunction from "../pages/gate/GateJunction";
+
 import ProtectedRoute from "../components/common/ProtectedRoute";
 
 const AppRoutes = () => {
@@ -20,7 +22,13 @@ const AppRoutes = () => {
 
       <Route path="/" element={<Login />} />
       <Route path="/complete-profile" element={<CompleteProfile />} />
-      <Route path="/gate/:slug" element={<GateScanner />} />
+
+      {/* QR scans land here first. GateJunction reads the logged-in
+          user's role and redirects to the right destination — students
+          go on to the scanner, security/admin go straight to their
+          dashboards. This is what keeps a security guard's scan from
+          ever reaching GateScanner. */}
+      <Route path="/gate/:slug" element={<GateJunction />} />
 
       {/* Student */}
 
@@ -29,6 +37,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute role="student">
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/gate-scanner/:slug"
+        element={
+          <ProtectedRoute role="student">
+            <GateScanner />
           </ProtectedRoute>
         }
       />

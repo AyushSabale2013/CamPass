@@ -65,6 +65,75 @@ export const getGateDetails = async (req, res) => {
 };
 
 /**
+ * GET /api/gate/junction/:slug
+ *
+ * The single endpoint a scanned QR code hits, regardless of who scans it.
+ * protect runs before this (see routes), so req.user is always set, but
+ * this handler itself is role-agnostic — its whole job is telling the
+ * client where to go next based on req.user.role.
+ *
+ * Students get gate details back (same shape as getGateDetails) so
+ * GateScanner.jsx can render immediately without a second request.
+ * Security/admin get a redirectTo path instead — they never receive gate
+ * coordinates or reasons here, since they have no business scanning in.
+ */
+export const getGateJunction = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    if (!slug) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing gate slug.",
+      });
+    }
+
+    const gate = await Gate.findOne({ slug, isActive: true });
+
+    if (!gate) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid Gate.",
+      });
+    }
+
+    if (req.user.role === "security") {
+      return res.status(200).json({
+        success: true,
+        redirectTo: "/security/dashboard",
+      });
+    }
+
+    if (req.user.role === "admin") {
+      return res.status(200).json({
+        success: true,
+        redirectTo: "/admin/dashboard",
+      });
+    }
+
+    // role === "student"
+    return res.status(200).json({
+      success: true,
+      gate: {
+        slug: gate.slug,
+        gateName: gate.gateName,
+        latitude: gate.latitude,
+        longitude: gate.longitude,
+        radius: gate.radius,
+      },
+      entryReasons: ENTRY_REASONS,
+      exitReasons: EXIT_REASONS,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+/**
  * POST /api/gate/verify
  *
  * Body: { slug, latitude, longitude, reason, additionalNote? }
@@ -286,6 +355,7 @@ export const getRecentLogs = async (req, res) => {
     });
   }
 };
+
 /**
  * GET /api/gate/security-logs?type=today|all&section=all|hostelers_outside|dayscholars_inside&page=1&limit=200
  *

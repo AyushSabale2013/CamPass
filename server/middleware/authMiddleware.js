@@ -5,7 +5,6 @@ export const protect = async (req, res, next) => {
   try {
     let token;
 
-    // Authorization: Bearer <token>
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer ")
@@ -40,4 +39,16 @@ export const protect = async (req, res, next) => {
       message: "Invalid or expired token.",
     });
   }
+};
+
+// Must run AFTER protect (needs req.user already set).
+// Usage: router.get("/x", protect, restrictTo("student"), handler)
+export const restrictTo = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({
+      success: false,
+      message: "You do not have permission to access this resource.",
+    });
+  }
+  next();
 };

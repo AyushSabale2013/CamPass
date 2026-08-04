@@ -31,7 +31,11 @@ const GateJunction = () => {
     const role = user.role?.toLowerCase();
 
     if (role === "student") {
-      navigate("/student/gate-scanner", { replace: true });
+      // FIX: this now matches the route actually registered in
+      // AppRoutes.jsx (/student/gate-scanner/:slug) — the old target,
+      // /student/gate-scanner with no slug, doesn't exist and would
+      // have dead-ended every student scan.
+      navigate(`/student/gate-scanner/${slug}`, { replace: true });
     } else if (role === "security" || role === "security guard") {
       navigate("/security/dashboard", { replace: true });
     } else if (role === "admin") {

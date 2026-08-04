@@ -4,17 +4,21 @@ import {
   verifyGate,
   getRecentLogs,
   getSecurityLogs,
+  getGateJunction,
 } from "../controllers/gateController.js";
-import { protect } from "../middleware/authMiddleware.js";
+import { protect, restrictTo } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Student / General Gate Routes
-router.get("/details/:slug", protect, getGateDetails);
-router.post("/verify", protect, verifyGate);
-router.get("/history", protect, getRecentLogs);
+// Junction — any authenticated role, decides where to send them
+router.get("/junction/:slug", protect, getGateJunction);
 
-// Security Dashboard Log Access Route
-router.get("/security-logs", protect, getSecurityLogs);
+// Student-only
+router.get("/details/:slug", protect, restrictTo("student"), getGateDetails);
+router.post("/verify", protect, restrictTo("student"), verifyGate);
+router.get("/history", protect, restrictTo("student"), getRecentLogs);
+
+// Security-only
+router.get("/security-logs", protect, restrictTo("security"), getSecurityLogs);
 
 export default router;
