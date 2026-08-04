@@ -145,18 +145,18 @@ const GpsCard = ({ gpsStatus, gpsVerified, distance, allowedRadius }) => {
         <div className="relative flex h-3 w-3">
           <span
             className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${gpsVerified
-                ? "bg-emerald-400"
-                : gpsStatus === "denied"
-                  ? "bg-rose-400"
-                  : "bg-amber-400"
+              ? "bg-emerald-400"
+              : gpsStatus === "denied"
+                ? "bg-rose-400"
+                : "bg-amber-400"
               }`}
           />
           <span
             className={`relative inline-flex rounded-full h-3 w-3 ${gpsVerified
-                ? "bg-emerald-500"
-                : gpsStatus === "denied"
-                  ? "bg-rose-500"
-                  : "bg-amber-500"
+              ? "bg-emerald-500"
+              : gpsStatus === "denied"
+                ? "bg-rose-500"
+                : "bg-amber-500"
               }`}
           />
         </div>
@@ -165,10 +165,10 @@ const GpsCard = ({ gpsStatus, gpsVerified, distance, allowedRadius }) => {
       <div className="flex items-center gap-3">
         <div
           className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${gpsVerified
-              ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-              : gpsStatus === "denied"
-                ? "bg-rose-50 text-rose-600 border border-rose-200"
-                : "bg-amber-50 text-amber-600 border border-amber-200"
+            ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+            : gpsStatus === "denied"
+              ? "bg-rose-50 text-rose-600 border border-rose-200"
+              : "bg-amber-50 text-amber-600 border border-amber-200"
             }`}
         >
           <svg
@@ -250,8 +250,8 @@ const GpsCard = ({ gpsStatus, gpsVerified, distance, allowedRadius }) => {
 const CampusStatusCard = ({ isInsideCampus }) => (
   <div
     className={`rounded-3xl p-5 shadow-sm border transition-all duration-300 relative overflow-hidden ${isInsideCampus
-        ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200/80"
-        : "bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border-indigo-200/80"
+      ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200/80"
+      : "bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border-indigo-200/80"
       }`}
   >
     <div className="flex items-center justify-between">
@@ -276,13 +276,53 @@ const CampusStatusCard = ({ isInsideCampus }) => (
       <div className="text-right">
         <span
           className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isInsideCampus
-              ? "bg-emerald-100 text-emerald-800"
-              : "bg-indigo-100 text-indigo-800"
+            ? "bg-emerald-100 text-emerald-800"
+            : "bg-indigo-100 text-indigo-800"
             }`}
         >
           {isInsideCampus ? "Ready for Exit" : "Ready for Entry"}
         </span>
       </div>
+    </div>
+  </div>
+);
+
+/** Transport Mode Selection Card */
+const TransportModeCard = ({ transportMode, setTransportMode }) => (
+  <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+    <div className="mb-3">
+      <h3 className="text-sm font-bold text-slate-900">Mode of Transport</h3>
+      <p className="text-xs text-slate-500">Select how you are traveling through the gate</p>
+    </div>
+
+    <div className="grid grid-cols-2 gap-2.5">
+      <button
+        type="button"
+        onClick={() => setTransportMode("SELF")}
+        className={`
+          p-3.5 rounded-2xl border text-left transition-all duration-200 active:scale-95 flex items-center justify-between
+          ${transportMode === "SELF"
+            ? "border-blue-600 bg-blue-50/80 text-blue-900 ring-2 ring-blue-600/20 font-bold shadow-sm"
+            : "border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50 font-medium"
+          }
+        `}
+      >
+        <span className="text-xs">Self</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setTransportMode("SCHOOL_BUS")}
+        className={`
+          p-3.5 rounded-2xl border text-left transition-all duration-200 active:scale-95 flex items-center justify-between
+          ${transportMode === "SCHOOL_BUS"
+            ? "border-amber-600 bg-amber-50/80 text-amber-900 ring-2 ring-amber-600/20 font-bold shadow-sm"
+            : "border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50 font-medium"
+          }
+        `}
+      >
+        <span className="text-xs">College Bus</span>
+      </button>
     </div>
   </div>
 );
@@ -329,8 +369,8 @@ const OtherReasonCard = ({ reason, setReason, note, setNote }) => {
   return (
     <div
       className={`rounded-3xl p-5 shadow-sm border transition-all duration-200 ${selected
-          ? "bg-rose-50/50 border-rose-300 ring-2 ring-rose-500/20"
-          : "bg-white border-slate-100"
+        ? "bg-rose-50/50 border-rose-300 ring-2 ring-rose-500/20"
+        : "bg-white border-slate-100"
         }`}
     >
       <div className="mb-3">
@@ -407,14 +447,26 @@ const ErrorBanner = ({ message }) => (
  *  auto-redirects to the dashboard a couple seconds later. */
 const SuccessPopup = ({ verification, onDone }) => {
   const [visible, setVisible] = useState(false);
+  const redirectTimerRef = useRef(null);
+
+  const handleClose = useCallback(() => {
+    // Clear the auto-redirect timer if the user closes it manually
+    if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
+    }
+    onDone();
+  }, [onDone]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setVisible(true));
-    const redirectTimer = setTimeout(onDone, 2200);
+    // Auto redirect after 2.2 seconds
+    redirectTimerRef.current = setTimeout(onDone, 50000);
 
     return () => {
       cancelAnimationFrame(frame);
-      clearTimeout(redirectTimer);
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
     };
   }, [onDone]);
 
@@ -422,11 +474,34 @@ const SuccessPopup = ({ verification, onDone }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6">
       <div
         className={`
-          w-full max-w-sm bg-white rounded-3xl p-7 text-center shadow-2xl
+          relative w-full max-w-sm bg-white rounded-3xl p-7 text-center shadow-2xl
           transition-all duration-300 ease-out
           ${visible ? "scale-100 opacity-100" : "scale-75 opacity-0"}
         `}
       >
+        {/* Top Right Close 'X' Button */}
+        <button
+          onClick={handleClose}
+          type="button"
+          aria-label="Close popup"
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-full transition-colors active:scale-95"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+
+        {/* Success Icon */}
         <div className="relative w-20 h-20 mx-auto mb-5">
           <span className="absolute inset-0 rounded-full bg-emerald-100 animate-ping" />
           <div className="relative w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center">
@@ -450,6 +525,7 @@ const SuccessPopup = ({ verification, onDone }) => {
           {(verification?.action || "PASS").toString().toUpperCase()} SUCCESSFUL
         </h2>
 
+        {/* Verification Summary Details */}
         <div className="space-y-3 text-xs border-t border-b border-slate-100 py-4 text-left">
           <div className="flex justify-between items-center">
             <span className="text-slate-400 font-medium">Gate Location</span>
@@ -481,8 +557,17 @@ const SuccessPopup = ({ verification, onDone }) => {
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-400 mt-4 font-medium">
-          Redirecting to dashboard…
+        {/* Manual Redirect / Close Button */}
+        <button
+          onClick={handleClose}
+          type="button"
+          className="w-full mt-5 py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-2xl shadow-md transition-all active:scale-95"
+        >
+          Go to Dashboard Now
+        </button>
+
+        <p className="text-[11px] text-slate-400 mt-3 font-medium">
+          Redirecting automatically…
         </p>
       </div>
     </div>
@@ -510,6 +595,7 @@ const GateScanner = () => {
 
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
+  const [transportMode, setTransportMode] = useState("SELF");
 
   const [submitting, setSubmitting] = useState(false);
   const [verification, setVerification] = useState(null);
@@ -644,6 +730,7 @@ const GateScanner = () => {
         longitude: coords.longitude,
         reason,
         additionalNote: reason === NOTE_REASON ? note : undefined,
+        transportMode,
       };
 
       const response = await verifyGate(payload);
@@ -662,8 +749,7 @@ const GateScanner = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [reason, gpsStatus, coords, gpsVerified, distance, gate, slug, note, loadUser]);
-
+  }, [reason, gpsStatus, coords, gpsVerified, distance, gate, slug, note, transportMode, loadUser]);
   const handleGoToDashboard = useCallback(() => {
     navigate("/student/dashboard");
   }, [navigate]);
@@ -723,6 +809,12 @@ const GateScanner = () => {
           gpsVerified={gpsVerified}
           distance={distance}
           allowedRadius={gate.radius || 200}
+        />
+
+        {/* Transport Mode Selection Card */}
+        <TransportModeCard
+          transportMode={transportMode}
+          setTransportMode={setTransportMode}
         />
 
         <StandardReasonsCard

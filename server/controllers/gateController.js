@@ -1,6 +1,6 @@
 import Gate from "../models/Gate.js";
 import User from "../models/User.js";
-import EntryLog, { ENTRY_REASONS, EXIT_REASONS } from "../models/EntryLog.js";
+import EntryLog, { ENTRY_REASONS, EXIT_REASONS, TRANSPORT_MODES } from "../models/EntryLog.js";
 import { calculateDistance } from "../utils/distance.js";
 
 const COOLDOWN_MS = 30 * 1000; // 30 seconds between actions
@@ -19,9 +19,6 @@ const isSameDay = (a, b) => {
 
 /**
  * GET /api/gate/details/:slug
- *
- * Returns just the gate's coordinates/radius/name so the client can
- * show a live GPS distance before the student taps the action button.
  */
 export const getGateDetails = async (req, res) => {
   try {
@@ -66,16 +63,6 @@ export const getGateDetails = async (req, res) => {
 
 /**
  * GET /api/gate/junction/:slug
- *
- * The single endpoint a scanned QR code hits, regardless of who scans it.
- * protect runs before this (see routes), so req.user is always set, but
- * this handler itself is role-agnostic — its whole job is telling the
- * client where to go next based on req.user.role.
- *
- * Students get gate details back (same shape as getGateDetails) so
- * GateScanner.jsx can render immediately without a second request.
- * Security/admin get a redirectTo path instead — they never receive gate
- * coordinates or reasons here, since they have no business scanning in.
  */
 export const getGateJunction = async (req, res) => {
   try {
@@ -111,7 +98,6 @@ export const getGateJunction = async (req, res) => {
       });
     }
 
-    // role === "student"
     return res.status(200).json({
       success: true,
       gate: {
@@ -135,14 +121,10 @@ export const getGateJunction = async (req, res) => {
 
 /**
  * POST /api/gate/verify
- *
- * Body: { slug, latitude, longitude, reason, additionalNote? }
  */
 export const verifyGate = async (req, res) => {
   try {
-    const { slug, latitude, longitude, reason, additionalNote } = req.body;
-
-    // --- Basic payload validation ---
+    const { slug, latitude, longitude, reason, additionalNote, transportMode } = req.body;
 
     if (!slug || latitude === undefined || longitude === undefined) {
       return res.status(400).json({
@@ -165,7 +147,9 @@ export const verifyGate = async (req, res) => {
       });
     }
 
-    // --- Gate lookup ---
+    const selectedTransportMode = (TRANSPORT_MODES && TRANSPORT_MODES.includes(transportMode))
+      ? transportMode
+      : "SELF";
 
     const gate = await Gate.findOne({ slug, isActive: true });
 
@@ -176,8 +160,6 @@ export const verifyGate = async (req, res) => {
       });
     }
 
-    // --- Student lookup ---
-
     const user = await User.findById(req.user._id);
 
     if (!user) {
@@ -186,8 +168,6 @@ export const verifyGate = async (req, res) => {
         message: "User not found.",
       });
     }
-
-    // --- GPS radius check ---
 
     const distance = calculateDistance(
       Number(latitude),
@@ -204,8 +184,6 @@ export const verifyGate = async (req, res) => {
       });
     }
 
-    // --- 30 second cooldown between any two actions ---
-
     if (user.lastActionAt) {
       const elapsedMs = Date.now() - new Date(user.lastActionAt).getTime();
       if (elapsedMs < COOLDOWN_MS) {
@@ -218,11 +196,7 @@ export const verifyGate = async (req, res) => {
       }
     }
 
-    // --- Determine action from current state ---
-
     const action = user.isInsideCampus ? "EXIT" : "ENTRY";
-
-    // --- Reason validation ---
 
     const validReasons = action === "ENTRY" ? ENTRY_REASONS : EXIT_REASONS;
 
@@ -232,8 +206,6 @@ export const verifyGate = async (req, res) => {
         message: `"${reason}" is not a valid reason for ${action.toLowerCase()}.`,
       });
     }
-
-    // --- Daily limit check ---
 
     const today = new Date();
     const sameDay = isSameDay(user.dailyCountDate, today);
@@ -257,8 +229,6 @@ export const verifyGate = async (req, res) => {
       });
     }
 
-    // --- Persist the log ---
-
     await EntryLog.create({
       userId: user._id,
       gateId: gate._id,
@@ -270,14 +240,13 @@ export const verifyGate = async (req, res) => {
       room: user.room,
       gateName: gate.gateName,
       status: action === "ENTRY" ? "IN" : "OUT",
+      transportMode: selectedTransportMode,
       reason,
       additionalNote: reason === "Other" ? additionalNote || "" : "",
       latitude,
       longitude,
       distance: Math.round(distance),
     });
-
-    // --- Update student state ---
 
     user.isInsideCampus = !user.isInsideCampus;
     user.lastActionAt = new Date();
@@ -291,6 +260,7 @@ export const verifyGate = async (req, res) => {
       success: true,
       message: `${action} Successful`,
       action,
+      transportMode: selectedTransportMode,
       gateName: gate.gateName,
       reason,
       distance: Math.round(distance),
@@ -308,8 +278,6 @@ export const verifyGate = async (req, res) => {
 
 /**
  * GET /api/gate/history?limit=5&page=1&status=IN|OUT
- *
- * Returns student logs, newest first.
  */
 export const getRecentLogs = async (req, res) => {
   try {
@@ -336,7 +304,8 @@ export const getRecentLogs = async (req, res) => {
       logs: logs.map((log) => ({
         id: log._id,
         gateName: log.gateName,
-        status: log.status, // "IN" | "OUT"
+        status: log.status,
+        transportMode: log.transportMode || "SELF",
         reason: log.reason,
         additionalNote: log.additionalNote,
         distance: log.distance,
@@ -358,14 +327,11 @@ export const getRecentLogs = async (req, res) => {
 
 /**
  * GET /api/gate/security-logs?type=today|all&section=all|hostelers_outside|dayscholars_inside&page=1&limit=200
- *
- * For Security Guards to view real-time student logs and campus status.
- * Deduplicates records so each student appears only ONCE with their latest scan log.
  */
 export const getSecurityLogs = async (req, res) => {
   try {
-    const type = req.query.type || "today"; // "today" | "all"
-    const section = req.query.section || "all"; // "all" | "hostelers_outside" | "dayscholars_inside"
+    const type = req.query.type || "today";
+    const section = req.query.section || "all";
     const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
 
@@ -381,12 +347,10 @@ export const getSecurityLogs = async (req, res) => {
       filter.createdAt = { $gte: startOfDay, $lte: endOfDay };
     }
 
-    // Fetch all logs sorted newest first
     const rawLogs = await EntryLog.find(filter)
       .populate("userId", "userType isInsideCampus hostel room phone")
       .sort({ createdAt: -1 });
 
-    // Deduplicate: Keep ONLY the most recent log per student
     const seenUsers = new Set();
     const uniqueLogs = [];
 
@@ -398,7 +362,6 @@ export const getSecurityLogs = async (req, res) => {
       }
     }
 
-    // For status views (outside/inside), use deduplicated logs; for raw stream view, keep full logs
     const logsToProcess =
       section === "hostelers_outside" || section === "dayscholars_inside"
         ? uniqueLogs
@@ -407,7 +370,6 @@ export const getSecurityLogs = async (req, res) => {
     const formattedLogs = logsToProcess.map((log) => {
       const student = log.userId;
 
-      // Determine Day Scholar Status
       const isDayScholar =
         student?.userType === "dayscholar" ||
         log.hostel === "Day Scholar" ||
@@ -428,7 +390,8 @@ export const getSecurityLogs = async (req, res) => {
         hostel: isDayScholar ? "DS" : log.hostel || student?.hostel || "N/A",
         room: isDayScholar ? "DS" : log.room || student?.room || "N/A",
         gateName: log.gateName,
-        status: log.status, // "IN" | "OUT"
+        status: log.status,
+        transportMode: log.transportMode || "SELF",
         isInsideCampus: isInside,
         reason: log.reason,
         additionalNote: log.additionalNote,
@@ -437,22 +400,18 @@ export const getSecurityLogs = async (req, res) => {
       };
     });
 
-    // Apply specific section filtering
     let filteredLogs = formattedLogs;
 
     if (section === "hostelers_outside") {
-      // Hostelers currently outside campus
       filteredLogs = formattedLogs.filter(
         (log) => log.userType === "hosteller" && !log.isInsideCampus
       );
     } else if (section === "dayscholars_inside") {
-      // Day Scholars currently inside campus
       filteredLogs = formattedLogs.filter(
         (log) => log.userType === "dayscholar" && log.isInsideCampus
       );
     }
 
-    // Pagination after filtering
     const total = filteredLogs.length;
     const startIndex = (page - 1) * limit;
     const paginatedLogs = filteredLogs.slice(startIndex, startIndex + limit);
@@ -473,6 +432,63 @@ export const getSecurityLogs = async (req, res) => {
     });
   } catch (error) {
     console.error("Security logs fetch error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+/**
+ * GET /api/gate/bus-logs?date=YYYY-MM-DD&status=IN|OUT
+ */
+export const getBusLogs = async (req, res) => {
+  try {
+    const { date, status } = req.query;
+
+    const queryDate = date ? new Date(date) : new Date();
+    const startOfDay = new Date(queryDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(queryDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const filter = {
+      transportMode: "SCHOOL_BUS",
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    };
+
+    if (status === "IN" || status === "OUT") {
+      filter.status = status;
+    }
+
+    const logs = await EntryLog.find(filter).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      date: startOfDay.toISOString().split("T")[0],
+      total: logs.length,
+      logs: logs.map((log) => ({
+        id: log._id,
+        _id: log._id,
+        studentName: log.name,
+        name: log.name,
+        studentMis: log.mis,
+        mis: log.mis,
+        studentPhone: log.phone,
+        phone: log.phone,
+        hostel: log.hostel,
+        room: log.room,
+        status: log.status,
+        gateName: log.gateName,
+        transportMode: log.transportMode || "SCHOOL_BUS",
+        reason: log.reason,
+        additionalNote: log.additionalNote,
+        createdAt: log.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error("Bus logs fetch error:", error);
     return res.status(500).json({
       success: false,
       message: "Server Error",

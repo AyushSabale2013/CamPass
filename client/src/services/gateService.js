@@ -23,6 +23,15 @@ export const getGateHistoryPage = ({ page = 1, limit = 15, status } = {}) => {
 };
 
 // Security Guard API Services
-export const getSecurityLogs = (type = "today", page = 1, limit = 50) => {
-    return axios.get(`/gate/security-logs?type=${type}&page=${page}&limit=${limit}`);
+export const getSecurityLogs = (type = "today", section = "all", page = 1, limit = 50) => {
+    const params = new URLSearchParams({ type, section, page, limit });
+    return axios.get(`/gate/security-logs?${params.toString()}`);
+};
+
+// Security Guard Bus Logs (Datewise College Bus Entries / Exits)
+export const getBusLogs = (date = "", status = "") => {
+    const params = new URLSearchParams();
+    if (date) params.append("date", date);
+    if (status) params.append("status", status);
+    return axios.get(`/gate/bus-logs?${params.toString()}`);
 };

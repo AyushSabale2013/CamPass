@@ -1,85 +1,152 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import Loader from "../../components/common/Loader";
-import { getSecurityLogs } from "../../services/gateService";
+import { getSecurityLogs, getBusLogs } from "../../services/gateService";
+
+// Returns today's date as YYYY-MM-DD in LOCAL time
+const getTodayDateStr = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 const SecurityDashboard = () => {
   const { user, loading, logout } = useAuth();
 
-  // views: "dashboard" | "today" | "hostelers_outside" | "dayscholars_inside" | "all"
+  // views: "dashboard" | "today" | "hostelers_outside" | "dayscholars_inside" | "all" | "bus_entries" | "bus_exits"
   const [view, setView] = useState("dashboard");
   const [logs, setLogs] = useState([]);
   const [fetching, setFetching] = useState(false);
+  const [total, setTotal] = useState(0);
+
+  // Date filter — only relevant for bus_entries / bus_exits views
+  const [busDate, setBusDate] = useState(getTodayDateStr());
+
+  const isBusView = view === "bus_entries" || view === "bus_exits";
 
   // Safe letter extract for guard avatar
   const guardInitial = user?.name ? user.name.trim().charAt(0).toUpperCase() : "S";
 
+  // =========================================================
+  // BROWSER BACK-BUTTON INTERCEPTION
+  // Returns to "dashboard" view when user hits browser/device Back
+  // =========================================================
+  // =========================================================
+  // BROWSER BACK-BUTTON INTERCEPTION
+  // 1. Sub-views -> return to "dashboard"
+  // 2. Main Dashboard view -> lock back button so it won't pop back to Login
+  // =========================================================
   useEffect(() => {
     if (view !== "dashboard") {
-      const fetchLogs = async () => {
-        try {
-          setFetching(true);
+      // Push state for sub-views so back button returns to main dashboard
+      window.history.pushState({ view }, "");
 
-          let reqType = "all";
-          let sectionParam = "all";
-
-          if (view === "today") {
-            reqType = "today";
-          } else if (view === "hostelers_outside") {
-            reqType = "today";
-            sectionParam = "hostelers_outside";
-          } else if (view === "dayscholars_inside") {
-            reqType = "today";
-            sectionParam = "dayscholars_inside";
-          }
-
-          const res = await getSecurityLogs(reqType, sectionParam);
-
-          if (res.data?.success) {
-            let fetchedLogs = res.data.logs || [];
-
-            // Ensure client-side deduplication (Only 1 latest entry per student)
-            if (view === "hostelers_outside" || view === "dayscholars_inside") {
-              const uniqueStudentMap = new Map();
-
-              for (const log of fetchedLogs) {
-                const studentKey = log.studentMis || log.mis || log._id;
-                if (!uniqueStudentMap.has(studentKey)) {
-                  uniqueStudentMap.set(studentKey, log);
-                }
-              }
-
-              fetchedLogs = Array.from(uniqueStudentMap.values());
-            }
-
-            // Client-side status checks
-            if (view === "hostelers_outside") {
-              fetchedLogs = fetchedLogs.filter(
-                (log) => log.userType === "hosteller" && log.isInsideCampus === false
-              );
-            } else if (view === "dayscholars_inside") {
-              fetchedLogs = fetchedLogs.filter(
-                (log) => log.userType === "dayscholar" && log.isInsideCampus === true
-              );
-            }
-
-            // Sort descending by date/time (Most recent scan first)
-            fetchedLogs.sort(
-              (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-            );
-
-            setLogs(fetchedLogs);
-          }
-        } catch (err) {
-          console.error("Failed to fetch real-time logs from DB:", err);
-        } finally {
-          setFetching(false);
-        }
+      const handlePopState = () => {
+        setView("dashboard");
       };
 
-      fetchLogs();
+      window.addEventListener("popstate", handlePopState);
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+      };
+    } else {
+      // Lock the main dashboard view into history so pressing Back on dashboard won't return to /login
+      window.history.pushState({ view: "dashboard" }, "");
+
+      const handleDashboardPopState = () => {
+        // Re-push state so user remains on dashboard
+        window.history.pushState({ view: "dashboard" }, "");
+      };
+
+      window.addEventListener("popstate", handleDashboardPopState);
+      return () => {
+        window.removeEventListener("popstate", handleDashboardPopState);
+      };
     }
   }, [view]);
+
+  useEffect(() => {
+    if (view === "dashboard") return;
+
+    const fetchLogs = async () => {
+      try {
+        setFetching(true);
+
+        // --- BUS VIEWS: separate endpoint, date-filterable, no dedup ---
+        if (isBusView) {
+          const status = view === "bus_entries" ? "IN" : "OUT";
+          const res = await getBusLogs(busDate, status);
+
+          if (res.data?.success) {
+            setLogs(res.data.logs || []);
+            setTotal(res.data.total ?? (res.data.logs || []).length);
+          }
+          return;
+        }
+
+        // --- EXISTING SECURITY LOG VIEWS ---
+        let reqType = "all";
+        let sectionParam = "all";
+
+        if (view === "today") {
+          reqType = "today";
+        } else if (view === "hostelers_outside") {
+          reqType = "today";
+          sectionParam = "hostelers_outside";
+        } else if (view === "dayscholars_inside") {
+          reqType = "today";
+          sectionParam = "dayscholars_inside";
+        }
+
+        const res = await getSecurityLogs(reqType, sectionParam);
+
+        if (res.data?.success) {
+          let fetchedLogs = res.data.logs || [];
+
+          // Ensure client-side deduplication (Only 1 latest entry per student)
+          if (view === "hostelers_outside" || view === "dayscholars_inside") {
+            const uniqueStudentMap = new Map();
+
+            for (const log of fetchedLogs) {
+              const studentKey = log.studentMis || log.mis || log._id;
+              if (!uniqueStudentMap.has(studentKey)) {
+                uniqueStudentMap.set(studentKey, log);
+              }
+            }
+
+            fetchedLogs = Array.from(uniqueStudentMap.values());
+          }
+
+          // Client-side status checks
+          if (view === "hostelers_outside") {
+            fetchedLogs = fetchedLogs.filter(
+              (log) => log.userType === "hosteller" && log.isInsideCampus === false
+            );
+          } else if (view === "dayscholars_inside") {
+            fetchedLogs = fetchedLogs.filter(
+              (log) => log.userType === "dayscholar" && log.isInsideCampus === true
+            );
+          }
+
+          // Sort descending by date/time (Most recent scan first)
+          fetchedLogs.sort(
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+          );
+
+          setLogs(fetchedLogs);
+          setTotal(fetchedLogs.length);
+        }
+      } catch (err) {
+        console.error("Failed to fetch real-time logs from DB:", err);
+      } finally {
+        setFetching(false);
+      }
+    };
+
+    fetchLogs();
+  }, [view, busDate]);
 
   if (loading) {
     return (
@@ -210,6 +277,39 @@ const SecurityDashboard = () => {
                 </div>
                 <span className="text-xl font-black">&rarr;</span>
               </button>
+
+              {/* Row of 2 small blocks: Bus Entries / Bus Exits */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Button 5: Bus Entries */}
+                <button
+                  onClick={() => {
+                    setBusDate(getTodayDateStr());
+                    setView("bus_entries");
+                  }}
+                  className="w-full bg-cyan-600 active:bg-cyan-700 text-white p-3 rounded-2xl shadow transition-all flex flex-col items-start text-left"
+                >
+                  <span className="text-[9px] font-black uppercase tracking-wider bg-cyan-700 text-cyan-100 px-2 py-0.5 rounded">
+                    Via Bus
+                  </span>
+                  <h3 className="text-sm font-black mt-1">Bus Entries</h3>
+                  <p className="text-[10px] text-cyan-100">Today's entries by bus</p>
+                </button>
+
+                {/* Button 6: Bus Exits */}
+                <button
+                  onClick={() => {
+                    setBusDate(getTodayDateStr());
+                    setView("bus_exits");
+                  }}
+                  className="w-full bg-rose-600 active:bg-rose-700 text-white p-3 rounded-2xl shadow transition-all flex flex-col items-start text-left"
+                >
+                  <span className="text-[9px] font-black uppercase tracking-wider bg-rose-700 text-rose-100 px-2 py-0.5 rounded">
+                    Via Bus
+                  </span>
+                  <h3 className="text-sm font-black mt-1">Bus Exits</h3>
+                  <p className="text-[10px] text-rose-100">Today's exits by bus</p>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -225,9 +325,19 @@ const SecurityDashboard = () => {
                   {view === "hostelers_outside" && "Hostelers Outside Campus"}
                   {view === "dayscholars_inside" && "Day Scholars Inside Campus"}
                   {view === "all" && "Complete Access History"}
+                  {view === "bus_entries" && "Bus Entries"}
+                  {view === "bus_exits" && "Bus Exits"}
                 </h2>
                 <p className="text-[11px] text-slate-500">
-                  Total Students: <strong>{logs.length}</strong>
+                  {isBusView ? (
+                    <>
+                      Total {view === "bus_entries" ? "Entries" : "Exits"}: <strong>{total}</strong>
+                    </>
+                  ) : (
+                    <>
+                      Total Students: <strong>{logs.length}</strong>
+                    </>
+                  )}
                 </p>
               </div>
 
@@ -238,6 +348,30 @@ const SecurityDashboard = () => {
                 &larr; Back
               </button>
             </div>
+
+            {/* Date Picker — only on Bus views */}
+            {isBusView && (
+              <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm gap-2">
+                <label className="text-[11px] font-bold text-slate-600 uppercase shrink-0">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={busDate}
+                  max={getTodayDateStr()}
+                  onChange={(e) => setBusDate(e.target.value)}
+                  className="text-xs font-bold text-slate-800 border border-slate-200 rounded-lg px-2 py-1.5 w-full"
+                />
+                {busDate !== getTodayDateStr() && (
+                  <button
+                    onClick={() => setBusDate(getTodayDateStr())}
+                    className="text-[10px] font-black text-cyan-700 bg-cyan-50 border border-cyan-200 px-2 py-1.5 rounded-lg whitespace-nowrap"
+                  >
+                    Today
+                  </button>
+                )}
+              </div>
+            )}
 
             {fetching ? (
               <div className="bg-white p-6 rounded-xl border text-center text-slate-500 text-xs">
@@ -250,7 +384,7 @@ const SecurityDashboard = () => {
             ) : (
               /* Mobile Card Stack List */
               <div className="space-y-3">
-                {logs.map((log) => {
+                {logs.map((log, idx) => {
                   const name = log.studentName || log.student?.name || log.name || "N/A";
                   const mis = log.studentMis || log.student?.mis || log.mis || "N/A";
                   const phone = log.studentPhone || log.student?.phone || log.phone || "N/A";
@@ -266,33 +400,32 @@ const SecurityDashboard = () => {
 
                   const logDate = log.createdAt
                     ? new Date(log.createdAt).toLocaleDateString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })
                     : "N/A";
 
                   const logTime = log.createdAt
                     ? new Date(log.createdAt).toLocaleTimeString("en-IN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    })
                     : "N/A";
 
                   return (
                     <div
-                      key={log._id || log.id}
+                      key={log._id || log.id || idx}
                       className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2 text-xs"
                     >
                       {/* Card Row 1: Action Badge & Date/Time */}
                       <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                         <span
-                          className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
-                            log.status === "IN"
+                          className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${log.status === "IN"
                               ? "bg-emerald-100 text-emerald-800"
                               : "bg-indigo-100 text-indigo-800"
-                          }`}
+                            }`}
                         >
                           {log.status === "IN" ? "ENTRY" : "EXIT"}
                         </span>

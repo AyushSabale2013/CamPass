@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 
-// Reasons shown when the student is currently OUTSIDE campus (about to
-// log an ENTRY).
+// Supported transport modes
+export const TRANSPORT_MODES = ["SELF", "SCHOOL_BUS"];
+
+// Reasons shown when student is currently OUTSIDE campus (about to log ENTRY)
 export const ENTRY_REASONS = [
     "Appointment",
     "College Lectures",
@@ -10,11 +12,11 @@ export const ENTRY_REASONS = [
     "Interview",
     "Sports",
     "Mess",
+    "College Bus", // <--- ADDED
     "Other",
 ];
 
-// Reasons shown when the student is currently INSIDE campus (about to
-// log an EXIT).
+// Reasons shown when student is currently INSIDE campus (about to log EXIT)
 export const EXIT_REASONS = [
     "Personal Work",
     "Medical",
@@ -25,11 +27,11 @@ export const EXIT_REASONS = [
     "Shopping",
     "Internship",
     "Emergency",
+    "College Bus", // <--- ADDED
     "Other",
 ];
 
-// The schema itself just needs to accept anything valid for either
-// direction — the controller enforces which list applies per request.
+// Combined reasons list for Mongoose validation
 const ALL_REASONS = [...new Set([...ENTRY_REASONS, ...EXIT_REASONS])];
 
 const entryLogSchema = new mongoose.Schema(
@@ -39,6 +41,7 @@ const entryLogSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true,
+            index: true, // Speeds up user history lookups
         },
 
         gateId: {
@@ -65,6 +68,7 @@ const entryLogSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
+            index: true, // Speeds up search by MIS
         },
 
         phone: {
@@ -92,11 +96,20 @@ const entryLogSchema = new mongoose.Schema(
             trim: true,
         },
 
-        // Entry Details
+        // Entry / Exit Details
         status: {
             type: String,
             enum: ["IN", "OUT"],
             required: true,
+        },
+
+        // NEW: Mode of transport
+        transportMode: {
+            type: String,
+            enum: TRANSPORT_MODES,
+            default: "SELF",
+            required: true,
+            index: true, // Speeds up security bus dashboard filtering
         },
 
         reason: {
@@ -125,7 +138,7 @@ const entryLogSchema = new mongoose.Schema(
             required: true,
         },
 
-        // Distance from the gate at the moment of verification (meters)
+        // Distance from gate at moment of verification (meters)
         distance: {
             type: Number,
             required: true,
@@ -135,6 +148,9 @@ const entryLogSchema = new mongoose.Schema(
         timestamps: true,
     }
 );
+
+// Compound Index for fast date-range and transport-mode analytics
+entryLogSchema.index({ createdAt: -1, transportMode: 1 });
 
 const EntryLog = mongoose.model("EntryLog", entryLogSchema);
 
