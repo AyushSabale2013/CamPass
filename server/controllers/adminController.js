@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import AccessLog from "../models/AccessLog.js";
 import Gate from "../models/Gate.js";
+import EntryLog from "../models/EntryLog.js";
 
 // 1. Get Admin Profile / Dashboard Stats
 export const getAdminProfile = async (req, res) => {
@@ -33,7 +34,7 @@ export const resetAllSystemData = async (req, res) => {
     try {
         // Clear all access logs
         await AccessLog.deleteMany({});
-        
+
         return res.status(200).json({
             success: true,
             message: "System data has been successfully reset.",
@@ -58,7 +59,7 @@ export const getAllUsers = async (req, res) => {
 export const createUser = async (req, res) => {
     try {
         const { name, email, role, mis, phone, userType, hostel, room, googleId } = req.body;
-        
+
         const existing = await User.findOne({ email });
         if (existing) {
             return res.status(400).json({ success: false, message: "User already exists with this email." });
@@ -189,11 +190,9 @@ export const deleteGate = async (req, res) => {
 };
 
 // --- LOGS EXPORT ---
-
 export const exportAllLogs = async (req, res) => {
     try {
-        const logs = await AccessLog.find({})
-            .populate("userId", "name email mis role")
+        const logs = await EntryLog.find({})
             .sort({ createdAt: -1 });
 
         return res.status(200).json({
