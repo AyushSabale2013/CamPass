@@ -18,13 +18,27 @@ const gateSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // QR Identifier
+    qrId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     // Used in URL
-    // Example: /gate/main-gate
     slug: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
+      trim: true,
+    },
+
+    // Gate Type (e.g. MAIN)
+    gateType: {
+      type: String,
+      required: true,
+      uppercase: true,
       trim: true,
     },
 

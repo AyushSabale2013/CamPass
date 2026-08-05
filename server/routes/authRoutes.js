@@ -1,7 +1,7 @@
 import express from "express";
 import {
   googleLogin,
-  registerStudent,
+  createUser as registerStudent,
   getCurrentUser,
 } from "../controllers/authController.js";
 

@@ -1,241 +1,146 @@
-import { useState } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import PageContainer from "../../components/layout/PageContainer";
-
-// Restricted authorized admin email
-const AUTHORIZED_ADMIN_EMAIL = "ayushsabale2282@gmail.com";
-
-// Mock student records (Replace with your backend API call)
-const INITIAL_STUDENTS = [
-  { id: 1, name: "Ayush Sabale", mis: "112203001", email: "ayushsabale2282@gmail.com", userType: "Hosteller", hostel: "Godavari", room: "A-203", phone: "9876543210", status: "Active" },
-  { id: 2, name: "Rohan Sharma", mis: "112203002", email: "rohan.s@college.edu", userType: "Hosteller", hostel: "Krishna", room: "B-105", phone: "9812345678", status: "Active" },
-  { id: 3, name: "Priya Patel", mis: "112203003", email: "priya.p@college.edu", userType: "Day Scholar", hostel: "-", room: "-", phone: "9765432109", status: "Active" },
-  { id: 4, name: "Amit Kumar", mis: "112203004", email: "amit.k@college.edu", userType: "Hosteller", hostel: "Brahmaputra", room: "C-301", phone: "9543210987", status: "Flagged" },
-];
+import { useAuth } from "../../context/AuthContext";
+import { fetchAdminDashboard, fetchAllUsers, fetchAllGates } from "../../services/adminService";
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("all");
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
-  // Get current user email from auth context or local storage
-  const currentUserEmail =
-    user?.email ||
-    sessionStorage.getItem("googleAuthEmail") ||
-    localStorage.getItem("email") ||
-    "";
+  const [dashboardData, setDashboardData] = useState(null);
+  const [userCount, setUserCount] = useState(0);
+  const [gateCount, setGateCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  // Security Check: Verify Admin Authorization
-  if (currentUserEmail.toLowerCase() !== AUTHORIZED_ADMIN_EMAIL.toLowerCase()) {
-    return (
-      <PageContainer>
-        <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-red-100 p-8 text-center">
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-1">Access Restricted</h2>
-            <p className="text-sm text-slate-500 mb-6">
-              You are logged in as <span className="font-semibold text-slate-800">{currentUserEmail || "Guest"}</span>.
-              This portal is strictly reserved for official system administrators.
-            </p>
-            <div className="p-3 bg-red-50 rounded-xl border border-red-200 text-xs font-semibold text-red-700">
-              Required Account: {AUTHORIZED_ADMIN_EMAIL}
-            </div>
-          </div>
-        </div>
-      </PageContainer>
-    );
-  }
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  // Filter students based on search input & residency type
-  const filteredStudents = INITIAL_STUDENTS.filter((student) => {
-    const matchesSearch =
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.mis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase());
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchAdminDashboard();
+      setDashboardData(data);
 
-    const matchesType =
-      filterType === "all" ||
-      (filterType === "hosteller" && student.userType === "Hosteller") ||
-      (filterType === "dayscholar" && student.userType === "Day Scholar");
+      const usersData = await fetchAllUsers();
+      setUserCount(usersData.users?.length || 0);
 
-    return matchesSearch && matchesType;
-  });
+      const gatesData = await fetchAllGates();
+      setGateCount(gatesData.gates?.length || 0);
+    } catch (error) {
+      console.error("Error loading admin dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <PageContainer>
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+      <div className="flex flex-col min-h-screen bg-slate-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
         
-        {/* Admin Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+        {/* Top Header with Logout */}
+        <header className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between sticky top-0 z-20 shadow-md">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Campus Admin Command Center
-              </h1>
-              <span className="px-2.5 py-1 text-xs font-bold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
-                Authorized
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
-              Logged in as <strong className="text-slate-800">{AUTHORIZED_ADMIN_EMAIL}</strong>
-            </p>
+            <h1 className="text-base font-bold tracking-wide">Admin Portal</h1>
+            <p className="text-[11px] text-slate-400">Campus Access Control Center</p>
           </div>
-        </div>
+          <button 
+            onClick={handleLogout}
+            className="bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm"
+          >
+            Logout
+          </button>
+        </header>
 
-        {/* System Stats Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Total Registered</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">{INITIAL_STUDENTS.length}</h3>
+        {/* Main Feed Container */}
+        <main className="p-4 space-y-4 pb-12 flex-1">
+          
+          {/* Profile Card */}
+          {dashboardData && (
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-xl font-bold shadow-md shadow-blue-500/20">
+                {dashboardData.admin?.name?.charAt(0) || "A"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-bold text-slate-900 text-base truncate">{dashboardData.admin?.name || "Administrator"}</h2>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-50 text-blue-600 uppercase">Admin</span>
+                </div>
+                <p className="text-xs text-slate-400 truncate mt-0.5">ID: {dashboardData.admin?.mis || "ADMIN-01"}</p>
+                <p className="text-xs text-slate-500 truncate mt-0.5">{dashboardData.admin?.email}</p>
+              </div>
             </div>
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-          </div>
+          )}
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Hostellers</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">
-                {INITIAL_STUDENTS.filter((s) => s.userType === "Hosteller").length}
-              </h3>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-xs text-slate-400 animate-pulse">Loading dashboard menu...</p>
             </div>
-            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-          </div>
+          ) : (
+            <div className="space-y-3.5">
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Day Scholars</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">
-                {INITIAL_STUDENTS.filter((s) => s.userType === "Day Scholar").length}
-              </h3>
-            </div>
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Security Alerts</p>
-              <h3 className="text-2xl font-black text-amber-600 mt-1">1 Flagged</h3>
-            </div>
-            <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Management Table Section */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-          {/* Controls Header */}
-          <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
-            <div>
-              <h3 className="font-bold text-slate-900">Student Profiles & Gate Status</h3>
-              <p className="text-xs text-slate-500">Search, filter, and review registered student access.</p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Filter Tabs */}
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-600"
+              {/* Manage Users Block */}
+              <div 
+                onClick={() => navigate("/admin/users")}
+                className="bg-emerald-600 text-white p-5 rounded-2xl shadow-md cursor-pointer hover:bg-emerald-700 transition flex items-center justify-between"
               >
-                <option value="all">All Residency Categories</option>
-                <option value="hosteller">Hostellers Only</option>
-                <option value="dayscholar">Day Scholars Only</option>
-              </select>
+                <div>
+                  <span className="bg-emerald-800/60 text-emerald-100 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Directory</span>
+                  <h3 className="text-lg font-bold mt-2">Manage Users ({userCount})</h3>
+                  <p className="text-emerald-100 text-xs mt-0.5">Add, view, or remove students and security staff</p>
+                </div>
+                <span className="text-xl font-bold bg-emerald-700/50 w-10 h-10 rounded-full flex items-center justify-center shrink-0">→</span>
+              </div>
 
-              {/* Search Bar */}
-              <input
-                type="text"
-                placeholder="Search name, MIS, email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-medium text-slate-900 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-600 w-full sm:w-64"
-              />
+              {/* Manage Gates Block */}
+              <div 
+                onClick={() => navigate("/admin/gates")}
+                className="bg-amber-600 text-white p-5 rounded-2xl shadow-md cursor-pointer hover:bg-amber-700 transition flex items-center justify-between"
+              >
+                <div>
+                  <span className="bg-amber-800/60 text-amber-100 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Checkpoints</span>
+                  <h3 className="text-lg font-bold mt-2">Manage Gates ({gateCount})</h3>
+                  <p className="text-amber-100 text-xs mt-0.5">Configure campus gates, coordinates, and radiuses</p>
+                </div>
+                <span className="text-xl font-bold bg-amber-700/50 w-10 h-10 rounded-full flex items-center justify-center shrink-0">→</span>
+              </div>
+
+              {/* Export Logs Block */}
+              <div 
+                onClick={() => navigate("/admin/logs")}
+                className="bg-blue-600 text-white p-5 rounded-2xl shadow-md cursor-pointer hover:bg-blue-700 transition flex items-center justify-between"
+              >
+                <div>
+                  <span className="bg-blue-800/60 text-blue-100 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Archives</span>
+                  <h3 className="text-lg font-bold mt-2">Export All Logs</h3>
+                  <p className="text-blue-100 text-xs mt-0.5">View and download complete system record archives</p>
+                </div>
+                <span className="text-xl font-bold bg-blue-700/50 w-10 h-10 rounded-full flex items-center justify-center shrink-0">↓</span>
+              </div>
+
+              {/* Reset System Block */}
+              <div 
+                onClick={() => navigate("/admin/reset")}
+                className="bg-rose-600 text-white p-5 rounded-2xl shadow-md cursor-pointer hover:bg-rose-700 transition flex items-center justify-between"
+              >
+                <div>
+                  <span className="bg-rose-800/60 text-rose-100 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Danger Zone</span>
+                  <h3 className="text-lg font-bold mt-2">Reset System Data</h3>
+                  <p className="text-rose-100 text-xs mt-0.5">Wipe logs and clear out temporal records</p>
+                </div>
+                <span className="text-xl font-bold bg-rose-700/50 w-10 h-10 rounded-full flex items-center justify-center shrink-0">⚠️</span>
+              </div>
+
             </div>
-          </div>
+          )}
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-100/60 text-[11px] uppercase tracking-wider font-bold text-slate-500">
-                  <th className="p-4">Student</th>
-                  <th className="p-4">MIS Number</th>
-                  <th className="p-4">Category</th>
-                  <th className="p-4">Hostel / Room</th>
-                  <th className="p-4">Contact</th>
-                  <th className="p-4 text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {filteredStudents.length > 0 ? (
-                  filteredStudents.map((student) => (
-                    <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-4 font-semibold text-slate-900">
-                        <div>{student.name}</div>
-                        <div className="text-xs text-slate-400 font-normal">{student.email}</div>
-                      </td>
-                      <td className="p-4 font-mono text-slate-700 font-bold">{student.mis}</td>
-                      <td className="p-4">
-                        <span
-                          className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
-                            student.userType === "Hosteller"
-                              ? "bg-blue-50 text-blue-700 border border-blue-200"
-                              : "bg-purple-50 text-purple-700 border border-purple-200"
-                          }`}
-                        >
-                          {student.userType}
-                        </span>
-                      </td>
-                      <td className="p-4 text-slate-600 font-medium">
-                        {student.userType === "Hosteller"
-                          ? `${student.hostel} (${student.room})`
-                          : "Day Scholar"}
-                      </td>
-                      <td className="p-4 font-mono text-xs text-slate-600">{student.phone}</td>
-                      <td className="p-4 text-center">
-                        <span
-                          className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
-                            student.status === "Active"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : "bg-amber-50 text-amber-700 border border-amber-200"
-                          }`}
-                        >
-                          {student.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="p-8 text-center text-slate-400 text-sm">
-                      No matching student records found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        </main>
 
       </div>
     </PageContainer>

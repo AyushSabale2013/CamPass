@@ -9,7 +9,7 @@ const HOSTELS = [
   "Godavari",
   "Krishna",
   "Brahmaputra",
-  "GH",
+  "Indrayani",
 ];
 
 // Helper to decode registration token payload safely
@@ -51,23 +51,52 @@ const CompleteProfile = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  // Auto-extract email and first 9 chars for MIS from registration token on mount
+  // Add a state for the warning message at the top with your other states:
+  const [emailWarning, setEmailWarning] = useState("");
+
+  // Update your useEffect hook:
   useEffect(() => {
     const token = sessionStorage.getItem("registrationToken");
     if (token) {
       const payload = decodeTokenPayload(token);
       if (payload && payload.email) {
         const extractedEmail = payload.email;
-        const derivedMis = extractedEmail.substring(0, 9);
 
-        setFormData((prev) => ({
-          ...prev,
-          email: extractedEmail,
-          mis: derivedMis,
-        }));
+        // Get the local part before the "@" symbol (e.g., "123456789abc" from "123456789abc@college.edu")
+        const localPart = extractedEmail.split("@")[0];
+
+        // Take the first 9 characters
+        const firstNine = localPart.substring(0, 9);
+
+        // Check if all of those first 9 characters are digits (0-9)
+        const isNumeric = /^\d{9}$/.test(firstNine);
+
+        if (isNumeric) {
+          // Valid: First 9 chars are numbers, safe to auto-fill
+          setFormData((prev) => ({
+            ...prev,
+            email: extractedEmail,
+            mis: firstNine,
+          }));
+          setEmailWarning("");
+        } else {
+          // Invalid: Contains non-number characters (abc chars), do not auto-fill MIS
+          setFormData((prev) => ({
+            ...prev,
+            email: extractedEmail,
+            mis: "", // Keep blank so user cannot proceed with invalid MIS
+          }));
+          setEmailWarning(
+            "Invalid institutional email format. Your email must start with a valid 9-digit MIS number. Please register with a valid official mail, otherwise strict disciplinary action will be taken against you."
+          );
+        }
       }
     }
   }, []);
+
+
+
+
 
   const validate = () => {
     const newErrors = {};
@@ -163,6 +192,14 @@ const CompleteProfile = () => {
               Every detail provided must be valid and accurate. Entering false information or misrepresenting identity constitutes a security violation and will result in <strong className="font-semibold underline">strict disciplinary action</strong>.
             </p>
           </div>
+          {emailWarning && (
+            <div className="p-4 bg-rose-50 border-l-4 border-rose-500 text-rose-900 rounded-r-xl text-xs sm:text-sm shadow-sm mt-4">
+              <p className="font-bold">Security & Registration Warning</p>
+              <p className="mt-1 text-rose-800/90 leading-relaxed">
+                {emailWarning}
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
 
