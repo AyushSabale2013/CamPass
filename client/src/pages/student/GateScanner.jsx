@@ -447,34 +447,24 @@ const ErrorBanner = ({ message }) => (
  *  auto-redirects to the dashboard a couple seconds later. */
 const SuccessPopup = ({ verification, onDone }) => {
   const [visible, setVisible] = useState(false);
-  const redirectTimerRef = useRef(null);
 
   const handleClose = useCallback(() => {
-    // Clear the auto-redirect timer if the user closes it manually
-    if (redirectTimerRef.current) {
-      clearTimeout(redirectTimerRef.current);
-    }
     onDone();
   }, [onDone]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setVisible(true));
-    // Auto redirect after 2.2 seconds
-    redirectTimerRef.current = setTimeout(onDone, 50000);
 
     return () => {
       cancelAnimationFrame(frame);
-      if (redirectTimerRef.current) {
-        clearTimeout(redirectTimerRef.current);
-      }
     };
-  }, [onDone]);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6">
       <div
         className={`
-          relative w-full max-w-sm bg-white rounded-3xl p-7 text-center shadow-2xl
+          relative w-full max-w-md bg-white rounded-3xl p-8 text-center shadow-2xl
           transition-all duration-300 ease-out
           ${visible ? "scale-100 opacity-100" : "scale-75 opacity-0"}
         `}
@@ -502,11 +492,11 @@ const SuccessPopup = ({ verification, onDone }) => {
         </button>
 
         {/* Success Icon */}
-        <div className="relative w-20 h-20 mx-auto mb-5">
+        <div className="relative w-24 h-24 mx-auto mb-5">
           <span className="absolute inset-0 rounded-full bg-emerald-100 animate-ping" />
-          <div className="relative w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center">
+          <div className="relative w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center">
             <svg
-              className="w-9 h-9 text-white"
+              className="w-11 h-11 text-white"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -521,16 +511,75 @@ const SuccessPopup = ({ verification, onDone }) => {
           Verification Complete
         </span>
 
-        <h2 className="text-xl font-extrabold text-slate-900 mt-3 mb-6 tracking-tight">
+        <h2 className="text-2xl font-extrabold text-slate-900 mt-3 mb-4 tracking-tight">
           {(verification?.action || "PASS").toString().toUpperCase()} SUCCESSFUL
         </h2>
 
+        {/* Transport Mode — highlighted, more prominent than other details */}
+        <div
+          className={`
+            flex items-center justify-center gap-2 mx-auto mb-5 px-5 py-3 rounded-2xl border-2
+            ${
+              verification?.transportMode === "SCHOOL_BUS"
+                ? "bg-amber-50 border-amber-300"
+                : "bg-blue-50 border-blue-300"
+            }
+          `}
+        >
+          <svg
+            className={`w-6 h-6 ${
+              verification?.transportMode === "SCHOOL_BUS"
+                ? "text-amber-600"
+                : "text-blue-600"
+            }`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            {verification?.transportMode === "SCHOOL_BUS" ? (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 6v6m8-6v6M3 12h18M4 12v6a1 1 0 001 1h1a1 1 0 001-1v-1h10v1a1 1 0 001 1h1a1 1 0 001-1v-6M5 12V7a2 2 0 012-2h10a2 2 0 012 2v5"
+              />
+            ) : (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13 16h-1v-4h-1m1-4h.01M12 21a9 9 0 100-18 9 9 0 000 18z"
+              />
+            )}
+          </svg>
+          <span
+            className={`text-base font-extrabold uppercase tracking-wide ${
+              verification?.transportMode === "SCHOOL_BUS"
+                ? "text-amber-700"
+                : "text-blue-700"
+            }`}
+          >
+            {verification?.transportMode === "SCHOOL_BUS"
+              ? "College Bus"
+              : "Self Transport"}
+          </span>
+        </div>
+
         {/* Verification Summary Details */}
-        <div className="space-y-3 text-xs border-t border-b border-slate-100 py-4 text-left">
+        <div className="space-y-3.5 text-sm border-t border-b border-slate-100 py-5 text-left">
           <div className="flex justify-between items-center">
             <span className="text-slate-400 font-medium">Gate Location</span>
             <span className="font-bold text-slate-800">
               {verification?.gateName || "Main Gate"}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 font-medium">Date</span>
+            <span className="font-bold text-slate-800">
+              {new Date(verification?.time || Date.now()).toLocaleDateString([], {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })}
             </span>
           </div>
           <div className="flex justify-between items-center">
@@ -557,18 +606,14 @@ const SuccessPopup = ({ verification, onDone }) => {
           </div>
         </div>
 
-        {/* Manual Redirect / Close Button */}
+        {/* Manual Close Button — no auto-redirect, this is a gate pass */}
         <button
           onClick={handleClose}
           type="button"
-          className="w-full mt-5 py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-2xl shadow-md transition-all active:scale-95"
+          className="w-full mt-6 py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-2xl shadow-md transition-all active:scale-95"
         >
-          Go to Dashboard Now
+          Done
         </button>
-
-        <p className="text-[11px] text-slate-400 mt-3 font-medium">
-          Redirecting automatically…
-        </p>
       </div>
     </div>
   );

@@ -12,7 +12,7 @@ export const ENTRY_REASONS = [
     "Interview",
     "Sports",
     "Mess",
-    "College Bus", // <--- ADDED
+    "Competition", 
     "Other",
 ];
 
@@ -27,7 +27,7 @@ export const EXIT_REASONS = [
     "Shopping",
     "Internship",
     "Emergency",
-    "College Bus", // <--- ADDED
+    "Talegaon", 
     "Other",
 ];
 

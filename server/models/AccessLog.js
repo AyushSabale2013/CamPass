@@ -1,15 +1,35 @@
 import mongoose from "mongoose";
 
-const REASON_OPTIONS = [
+// Reasons shown when student is currently OUTSIDE campus (about to log ENTRY)
+export const ENTRY_REASONS = [
+  "Appointment",
+  "College Lectures",
+  "Study",
+  "Visit",
+  "Interview",
+  "Sports",
+  "Mess",
+  "Competition",
+  "Other",
+];
+
+// Reasons shown when student is currently INSIDE campus (about to log EXIT)
+export const EXIT_REASONS = [
   "Personal Work",
   "Medical",
-  "Home Visit",
+  "Trekking",
+  "Tapari",
   "Railway Station",
+  "Home Visit",
   "Shopping",
   "Internship",
   "Emergency",
+  "Talegaon",
   "Other",
 ];
+
+// Combined reasons list for Mongoose validation
+const ALL_REASONS = [...new Set([...ENTRY_REASONS, ...EXIT_REASONS])];
 
 const accessLogSchema = new mongoose.Schema(
   {
@@ -43,7 +63,7 @@ const accessLogSchema = new mongoose.Schema(
 
     reason: {
       type: String,
-      enum: REASON_OPTIONS,
+      enum: ALL_REASONS,
       required: true,
     },
 
@@ -72,5 +92,4 @@ const accessLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export const REASONS = REASON_OPTIONS;
 export default mongoose.model("AccessLog", accessLogSchema);

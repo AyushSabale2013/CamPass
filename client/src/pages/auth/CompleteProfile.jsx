@@ -46,6 +46,11 @@ const CompleteProfile = () => {
 
   const [errors, setErrors] = useState({});
 
+  // UI state: submit spinner, success popup, post-success redirect transition
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
   // Auto-extract email and first 9 chars for MIS from registration token on mount
   useEffect(() => {
     const token = sessionStorage.getItem("registrationToken");
@@ -91,6 +96,9 @@ const CompleteProfile = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+    if (isSubmitting) return; // guard against double submits
+
+    setIsSubmitting(true);
 
     try {
       const registrationToken = sessionStorage.getItem("registrationToken");
@@ -107,23 +115,38 @@ const CompleteProfile = () => {
       const data = response.data;
       login(data.user, data.token);
 
-      const redirect = sessionStorage.getItem("redirectAfterLogin") || "/gate/main-gate";
-
+      // Clean up registration-only session data. We intentionally keep
+      // redirectAfterLogin unused here since we always route to the gate
+      // scanner after registration, but we still clear both keys so no
+      // stale registration state lingers for future logins.
       sessionStorage.removeItem("registrationToken");
       sessionStorage.removeItem("redirectAfterLogin");
 
-      navigate(redirect, { replace: true });
+      setIsSubmitting(false);
+      setShowSuccessModal(true);
     } catch (error) {
       console.error(error);
+      setIsSubmitting(false);
       alert(error.response?.data?.message || "Registration Failed");
     }
   };
 
+  const handleContinueToGate = () => {
+    setShowSuccessModal(false);
+    setIsRedirecting(true);
+
+    // Small delay purely for a smooth visual transition before navigating.
+    setTimeout(() => {
+      navigate("/gate/main-gate", { replace: true });
+    }, 900);
+  };
+
   return (
     <PageContainer>
-      <div className="min-h-screen py-10 px-4 flex flex-col justify-center items-center bg-slate-50">
+      <div className="min-h-screen py-10 px-4 flex flex-col justify-center items-center bg-slate-50 relative">
+
         <div className="w-full max-w-xl bg-white shadow-xl rounded-2xl border border-slate-100 p-8">
-          
+
           <div className="text-center md:text-left mb-6">
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
               Complete Your Profile
@@ -142,7 +165,7 @@ const CompleteProfile = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-            
+
             {/* Auto-filled Email Block */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
@@ -184,7 +207,8 @@ const CompleteProfile = () => {
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="9876543210"
-                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-sm"
+                disabled={isSubmitting}
+                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-sm disabled:bg-slate-50 disabled:cursor-not-allowed"
               />
               {errors.phone && (
                 <p className="text-rose-500 text-xs mt-1.5 font-medium">
@@ -206,6 +230,7 @@ const CompleteProfile = () => {
                     value="hosteller"
                     checked={formData.userType === "hosteller"}
                     onChange={handleChange}
+                    disabled={isSubmitting}
                     className="accent-blue-600"
                   />
                   Hosteller
@@ -218,6 +243,7 @@ const CompleteProfile = () => {
                     value="dayscholar"
                     checked={formData.userType === "dayscholar"}
                     onChange={handleChange}
+                    disabled={isSubmitting}
                     className="accent-blue-600"
                   />
                   Day Scholar
@@ -236,7 +262,8 @@ const CompleteProfile = () => {
                     name="hostel"
                     value={formData.hostel}
                     onChange={handleChange}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-sm cursor-pointer"
+                    disabled={isSubmitting}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-sm cursor-pointer disabled:bg-slate-50 disabled:cursor-not-allowed"
                   >
                     {HOSTELS.map((hostel) => (
                       <option key={hostel} value={hostel}>
@@ -257,7 +284,8 @@ const CompleteProfile = () => {
                     value={formData.room}
                     onChange={handleChange}
                     placeholder="e.g. A-203"
-                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-sm"
+                    disabled={isSubmitting}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all shadow-sm disabled:bg-slate-50 disabled:cursor-not-allowed"
                   />
                   {errors.room && (
                     <p className="text-rose-500 text-xs mt-1.5 font-medium">
@@ -270,14 +298,121 @@ const CompleteProfile = () => {
 
             <button
               type="submit"
-              className="w-full mt-2 bg-blue-600 text-white py-3.5 rounded-xl font-semibold hover:bg-blue-700 active:scale-[0.99] transition-all shadow-md shadow-blue-500/20 text-sm tracking-wide"
+              disabled={isSubmitting}
+              className="w-full mt-2 bg-blue-600 text-white py-3.5 rounded-xl font-semibold hover:bg-blue-700 active:scale-[0.99] transition-all shadow-md shadow-blue-500/20 text-sm tracking-wide disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Complete Registration
+              {isSubmitting ? (
+                <>
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Registering...
+                </>
+              ) : (
+                "Complete Registration"
+              )}
             </button>
 
           </form>
         </div>
+
+        {/* Success Popup */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-sm w-full p-7 text-center transform animate-scaleIn">
+              <div className="mx-auto mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50">
+                <svg
+                  className="w-9 h-9 text-emerald-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">
+                Registration Successful
+              </h2>
+              <p className="text-slate-500 text-sm mt-2 leading-relaxed">
+                Your profile has been created successfully. You can now proceed to the gate scanner.
+              </p>
+              <button
+                onClick={handleContinueToGate}
+                className="w-full mt-6 bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 active:scale-[0.99] transition-all shadow-md shadow-blue-500/20 text-sm tracking-wide"
+              >
+                Continue to Gate
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Smooth Post-Success Redirect Loading Screen */}
+        {isRedirecting && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-50/95 backdrop-blur-sm animate-fadeIn">
+            <svg
+              className="animate-spin h-10 w-10 text-blue-600 mb-4"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <p className="text-slate-600 text-sm font-medium tracking-wide">
+              Redirecting to gate scanner...
+            </p>
+          </div>
+        )}
+
       </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95) translateY(8px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+        .animate-scaleIn {
+          animation: scaleIn 0.25s ease-out;
+        }
+      `}</style>
     </PageContainer>
   );
 };

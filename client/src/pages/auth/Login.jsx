@@ -36,16 +36,11 @@ const Login = () => {
           return;
         }
 
-        // Student Navigation Flow
-        const redirect =
-          sessionStorage.getItem("redirectAfterLogin") ||
-          "/student/dashboard";
-
+        // Student Navigation Flow — always route to gate scanner
         sessionStorage.removeItem("redirectAfterLogin");
-        navigate(redirect, { replace: true });
+        navigate("/gate/main-gate", { replace: true });
         return;
       }
-
       // New User Profile Completion Flow
       sessionStorage.setItem(
         "registrationToken",
