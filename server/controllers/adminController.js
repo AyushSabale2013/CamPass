@@ -32,16 +32,22 @@ export const getAdminProfile = async (req, res) => {
 // 2. Reset All System Data (Deletes all logs, non-admin users, etc.)
 export const resetAllSystemData = async (req, res) => {
     try {
-        // Clear all access logs
-        await AccessLog.deleteMany({});
+        // Execute deletion atomically or sequentially to purge student accounts and entry logs only
+        await Promise.all([
+            User.deleteMany({ role: "student" }),
+            EntryLog.deleteMany({})
+        ]);
 
         return res.status(200).json({
             success: true,
-            message: "System data has been successfully reset.",
+            message: "Semester reset complete. All student profiles and entry logs have been permanently removed.",
         });
     } catch (error) {
         console.error("System Reset Error:", error);
-        return res.status(500).json({ success: false, message: "Failed to reset system data." });
+        return res.status(500).json({ 
+            success: false, 
+            message: "Failed to reset system data." 
+        });
     }
 };
 
