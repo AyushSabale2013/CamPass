@@ -71,7 +71,7 @@ const userSchema = new mongoose.Schema(
 
         isInsideCampus: {
             type: Boolean,
-            default: false,
+            default: true, // Default to true so new users start inside
         },
     },
     {

@@ -128,20 +128,76 @@ export const googleLogin = async (req, res) => {
     }
 };
 
-// Register Student
+
+
+// Register user 
 export const createUser = async (req, res) => {
     try {
-        const userData = { ...req.body };
+        const {
+            registrationToken,
+            phone,
+            hostel = "Day Scholar",
+            room = "Day Scholar",
+            role = "student",
+            name,
+            userType,
+            isInsideCampus,
+            status = "active",
+            mis: bodyMis,
+            email: bodyEmail
+        } = req.body;
 
-        // Add this check to prevent validation failure
-        if (!userData.googleId) {
-            userData.googleId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        let email = bodyEmail;
+        let mis = bodyMis;
+
+        if (registrationToken) {
+            try {
+                const decoded = jwt.decode(registrationToken) || JSON.parse(Buffer.from(registrationToken.split('.')[1], 'base64').toString());
+                if (decoded && decoded.email) {
+                    email = decoded.email;
+                    const localPart = email.split("@")[0];
+                    mis = localPart.substring(0, 9);
+                }
+            } catch (err) {
+                console.error("Token decoding error:", err);
+            }
         }
 
-        const newUser = await User.create(userData);
-        res.status(201).json({ success: true, user: newUser });
+        if (!email) {
+            return res.status(400).json({ success: false, message: "Email is missing or invalid." });
+        }
+
+        const existingUser = await User.findOne({ $or: [{ email }, { mis }] });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: "User with this email or MIS already exists."
+            });
+        }
+
+        const resolvedUserType = userType || (hostel === "Day Scholar" ? "dayscholar" : "hosteller");
+
+        const newUser = await User.create({
+            name: name || email.split("@")[0],
+            email,
+            mis,
+            phone,
+            userType: resolvedUserType,
+            hostel,
+            room,
+            role,
+            // If isInsideCampus is undefined/null in req.body, default to true
+            isInsideCampus: isInsideCampus !== undefined ? isInsideCampus : true,
+            status,
+            googleId: `manual-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+        });
+
+        const authToken = jwt.sign({ id: newUser._id, role: newUser.role }, process.env.JWT_SECRET || "fallback_secret", { expiresIn: "7d" });
+
+        return res.status(201).json({ success: true, user: newUser, token: authToken });
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message });
+        console.error("Create User Error:", error);
+        return res.status(400).json({ success: false, message: error.message });
     }
 };
 
