@@ -73,6 +73,30 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: true, // Default to true so new users start inside
         },
+
+        // --- Gate rate-limiting fields ---
+
+        lastActionAt: {
+            type: Date,
+            default: null, // no action yet -> cooldown check is skipped (controller checks `if (user.lastActionAt)`)
+        },
+
+        dailyCountDate: {
+            type: Date,
+            default: null, // no counts yet -> isSameDay() safely returns false, counts start at 0
+        },
+
+        dailyEntryCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+
+        dailyExitCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
     },
     {
         timestamps: true,

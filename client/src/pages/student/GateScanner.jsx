@@ -442,6 +442,193 @@ const ErrorBanner = ({ message }) => (
   </div>
 );
 
+/** Cooldown Popup — shown when scanning too soon after the last action */
+const CooldownPopup = ({ waitSeconds, onClose }) => {
+  const [visible, setVisible] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(waitSeconds);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const timer = setInterval(() => {
+      setSecondsLeft((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [secondsLeft]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6">
+      <div
+        className={`
+          relative w-full max-w-md bg-white rounded-3xl p-8 text-center shadow-2xl
+          transition-all duration-300 ease-out
+          ${visible ? "scale-100 opacity-100" : "scale-75 opacity-0"}
+        `}
+      >
+        <button
+          onClick={onClose}
+          type="button"
+          aria-label="Close popup"
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-full transition-colors active:scale-95"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+
+        <div className="relative w-24 h-24 mx-auto mb-5">
+          <span className="absolute inset-0 rounded-full bg-amber-100 animate-ping" />
+          <div className="relative w-24 h-24 rounded-full bg-amber-500 flex items-center justify-center">
+            <svg
+              className="w-11 h-11 text-white"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+        </div>
+
+        <span className="px-3 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-full text-[11px] font-bold uppercase tracking-wider">
+          Please Wait
+        </span>
+
+        <h2 className="text-2xl font-extrabold text-slate-900 mt-3 mb-2 tracking-tight">
+          Scanning Too Soon
+        </h2>
+
+        <p className="text-sm text-slate-500 mb-5">
+          You need to wait a moment before your next scan.
+        </p>
+
+        <div className="mx-auto mb-6 w-24 h-24 rounded-full border-4 border-amber-500 flex items-center justify-center">
+          <span className="text-3xl font-black text-amber-600 font-mono">
+            {secondsLeft}s
+          </span>
+        </div>
+
+        <button
+          onClick={onClose}
+          type="button"
+          disabled={secondsLeft > 0}
+          className={`
+            w-full py-3.5 px-4 font-bold text-sm rounded-2xl shadow-md transition-all active:scale-95
+            ${secondsLeft > 0
+              ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+              : "bg-slate-900 hover:bg-slate-800 text-white"
+            }
+          `}
+        >
+          {secondsLeft > 0 ? `Wait ${secondsLeft}s...` : "Got It"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/** Daily Limit Popup — shown when the student has used up all their entry/exit passes for the day */
+const DailyLimitPopup = ({ action, onClose }) => {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6">
+      <div
+        className={`
+          relative w-full max-w-md bg-white rounded-3xl p-8 text-center shadow-2xl
+          transition-all duration-300 ease-out
+          ${visible ? "scale-100 opacity-100" : "scale-75 opacity-0"}
+        `}
+      >
+        <button
+          onClick={onClose}
+          type="button"
+          aria-label="Close popup"
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-full transition-colors active:scale-95"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+
+        <div className="relative w-24 h-24 mx-auto mb-5">
+          <span className="absolute inset-0 rounded-full bg-rose-100 animate-ping" />
+          <div className="relative w-24 h-24 rounded-full bg-rose-500 flex items-center justify-center">
+            <svg
+              className="w-11 h-11 text-white"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+        </div>
+
+        <span className="px-3 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-full text-[11px] font-bold uppercase tracking-wider">
+          Limit Reached
+        </span>
+
+        <h2 className="text-2xl font-extrabold text-slate-900 mt-3 mb-2 tracking-tight">
+          Daily {action === "EXIT" ? "Exit" : "Entry"} Limit Reached
+        </h2>
+
+        <p className="text-sm text-slate-500 mb-6">
+          You've used all your allowed {action === "EXIT" ? "exits" : "entries"} for today.
+          Please contact the gate office if you need further assistance.
+        </p>
+
+        <button
+          onClick={onClose}
+          type="button"
+          className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-2xl shadow-md transition-all active:scale-95"
+        >
+          Okay
+        </button>
+      </div>
+    </div>
+  );
+};
+
 /** GPay-style success popup — overlays the current page (doesn't replace
  *  it), scales/pops in, pulses a ring behind the checkmark, then
  *  auto-redirects to the dashboard a couple seconds later. */
@@ -519,19 +706,17 @@ const SuccessPopup = ({ verification, onDone }) => {
         <div
           className={`
             flex items-center justify-center gap-2 mx-auto mb-5 px-5 py-3 rounded-2xl border-2
-            ${
-              verification?.transportMode === "SCHOOL_BUS"
-                ? "bg-amber-50 border-amber-300"
-                : "bg-blue-50 border-blue-300"
+            ${verification?.transportMode === "SCHOOL_BUS"
+              ? "bg-amber-50 border-amber-300"
+              : "bg-blue-50 border-blue-300"
             }
           `}
         >
           <svg
-            className={`w-6 h-6 ${
-              verification?.transportMode === "SCHOOL_BUS"
+            className={`w-6 h-6 ${verification?.transportMode === "SCHOOL_BUS"
                 ? "text-amber-600"
                 : "text-blue-600"
-            }`}
+              }`}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -552,11 +737,10 @@ const SuccessPopup = ({ verification, onDone }) => {
             )}
           </svg>
           <span
-            className={`text-base font-extrabold uppercase tracking-wide ${
-              verification?.transportMode === "SCHOOL_BUS"
+            className={`text-base font-extrabold uppercase tracking-wide ${verification?.transportMode === "SCHOOL_BUS"
                 ? "text-amber-700"
                 : "text-blue-700"
-            }`}
+              }`}
           >
             {verification?.transportMode === "SCHOOL_BUS"
               ? "College Bus"
@@ -645,6 +829,11 @@ const GateScanner = () => {
   const [submitting, setSubmitting] = useState(false);
   const [verification, setVerification] = useState(null);
   const [error, setError] = useState("");
+
+  // Holds { type: "COOLDOWN" | "DAILY_LIMIT", waitSeconds?, action? } or null.
+  // Separate from `error` so these get their own popup treatment instead
+  // of the plain inline ErrorBanner.
+  const [blockedState, setBlockedState] = useState(null);
 
   const watchIdRef = useRef(null);
 
@@ -787,14 +976,29 @@ const GateScanner = () => {
         await loadUser();
       }
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-        "Verification failed. Please check network connection and try again."
-      );
+      const code = err.response?.data?.code;
+      const message = err.response?.data?.message;
+
+      if (code === "COOLDOWN") {
+        const match = /(\d+)s/.exec(message || "");
+        const waitSeconds = match ? parseInt(match[1], 10) : 30;
+        setBlockedState({ type: "COOLDOWN", waitSeconds });
+      } else if (code === "DAILY_LIMIT") {
+        setBlockedState({
+          type: "DAILY_LIMIT",
+          action: user?.isInsideCampus ? "EXIT" : "ENTRY",
+        });
+      } else {
+        setError(
+          message ||
+          "Verification failed. Please check network connection and try again."
+        );
+      }
     } finally {
       setSubmitting(false);
     }
-  }, [reason, gpsStatus, coords, gpsVerified, distance, gate, slug, note, transportMode, loadUser]);
+  }, [reason, gpsStatus, coords, gpsVerified, distance, gate, slug, note, transportMode, loadUser, user?.isInsideCampus]);
+
   const handleGoToDashboard = useCallback(() => {
     navigate("/student/dashboard");
   }, [navigate]);
@@ -917,6 +1121,20 @@ const GateScanner = () => {
 
       {verification && (
         <SuccessPopup verification={verification} onDone={handleGoToDashboard} />
+      )}
+
+      {blockedState?.type === "COOLDOWN" && (
+        <CooldownPopup
+          waitSeconds={blockedState.waitSeconds}
+          onClose={() => setBlockedState(null)}
+        />
+      )}
+
+      {blockedState?.type === "DAILY_LIMIT" && (
+        <DailyLimitPopup
+          action={blockedState.action}
+          onClose={() => setBlockedState(null)}
+        />
       )}
     </div>
   );

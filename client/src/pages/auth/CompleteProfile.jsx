@@ -238,7 +238,7 @@ const CompleteProfile = () => {
             {/* Campus Status Selection */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2">
-                Where are you currently? <span className="text-rose-500">*</span>
+               Where would you like to go right now ? <span className="text-rose-500">*</span>
               </label>
               <div className="grid grid-cols-2 gap-4">
                 <label className={`flex items-center justify-center gap-2 p-3.5 border rounded-xl cursor-pointer transition-all ${formData.isInsideCampus === true ? "border-blue-600 bg-blue-50/50 text-blue-900 font-semibold shadow-sm" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
@@ -250,7 +250,7 @@ const CompleteProfile = () => {
                     disabled={isSubmitting}
                     className="accent-blue-600"
                   />
-                  Inside Campus
+                  Outside Campus
                 </label>
 
                 <label className={`flex items-center justify-center gap-2 p-3.5 border rounded-xl cursor-pointer transition-all ${formData.isInsideCampus === false ? "border-blue-600 bg-blue-50/50 text-blue-900 font-semibold shadow-sm" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
@@ -262,7 +262,7 @@ const CompleteProfile = () => {
                     disabled={isSubmitting}
                     className="accent-blue-600"
                   />
-                  Outside Campus
+                  Inside Campus
                 </label>
               </div>
             </div>

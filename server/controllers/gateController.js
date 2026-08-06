@@ -3,18 +3,23 @@ import User from "../models/User.js";
 import EntryLog, { ENTRY_REASONS, EXIT_REASONS, TRANSPORT_MODES } from "../models/EntryLog.js";
 import { calculateDistance } from "../utils/distance.js";
 
-const COOLDOWN_MS = 30 * 1000; // 30 seconds between actions
+const COOLDOWN_MS = 60 * 1000; // 30 seconds between actions
 const DAILY_LIMIT = 30; // max ENTRY and max EXIT actions per day
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // UTC+5:30
 
-const isSameDay = (a, b) => {
-  if (!a || !b) return false;
-  const d1 = new Date(a);
-  const d2 = new Date(b);
-  return (
-    d1.getUTCFullYear() === d2.getUTCFullYear() &&
-    d1.getUTCMonth() === d2.getUTCMonth() &&
-    d1.getUTCDate() === d2.getUTCDate()
-  );
+/**
+ * Returns the Date (as a UTC instant) representing midnight IST for the
+ * IST calendar day that `date` falls in. Two dates are on the "same IST
+ * day" iff getISTDayStart() gives the exact same value for both — so
+ * this replaces the old isSameDay(), which compared using UTC date
+ * parts and reset counters at 5:30 AM IST instead of midnight IST.
+ */
+const getISTDayStart = (date = new Date()) => {
+  const shifted = new Date(date.getTime() + IST_OFFSET_MS);
+  const y = shifted.getUTCFullYear();
+  const m = shifted.getUTCMonth();
+  const d = shifted.getUTCDate();
+  return new Date(Date.UTC(y, m, d, 0, 0, 0, 0) - IST_OFFSET_MS);
 };
 
 /**
@@ -184,8 +189,16 @@ export const verifyGate = async (req, res) => {
       });
     }
 
-    if (user.lastActionAt) {
-      const elapsedMs = Date.now() - new Date(user.lastActionAt).getTime();
+    // Snapshot exactly what we read. These same values are re-checked in
+    // the update filter below (optimistic locking) — if another request
+    // for this same user writes in between our read and our write, this
+    // snapshot will no longer match and our write will be rejected
+    // instead of silently double-counting or double-toggling.
+    const readLastActionAt = user.lastActionAt ? new Date(user.lastActionAt).getTime() : null;
+    const readIsInsideCampus = user.isInsideCampus;
+
+    if (readLastActionAt !== null) {
+      const elapsedMs = Date.now() - readLastActionAt;
       if (elapsedMs < COOLDOWN_MS) {
         const waitSeconds = Math.ceil((COOLDOWN_MS - elapsedMs) / 1000);
         return res.status(429).json({
@@ -196,8 +209,7 @@ export const verifyGate = async (req, res) => {
       }
     }
 
-    const action = user.isInsideCampus ? "EXIT" : "ENTRY";
-
+    const action = readIsInsideCampus ? "EXIT" : "ENTRY";
     const validReasons = action === "ENTRY" ? ENTRY_REASONS : EXIT_REASONS;
 
     if (!validReasons.includes(reason)) {
@@ -207,13 +219,17 @@ export const verifyGate = async (req, res) => {
       });
     }
 
-    const today = new Date();
-    const sameDay = isSameDay(user.dailyCountDate, today);
+    // --- Timezone-safe daily count check (IST) ---
+    const todayStart = getISTDayStart();
+    const storedDayStart = user.dailyCountDate
+      ? getISTDayStart(new Date(user.dailyCountDate))
+      : null;
+    const sameDay = storedDayStart !== null && storedDayStart.getTime() === todayStart.getTime();
 
-    let dailyEntryCount = sameDay ? user.dailyEntryCount : 0;
-    let dailyExitCount = sameDay ? user.dailyExitCount : 0;
+    const currentEntryCount = sameDay ? user.dailyEntryCount : 0;
+    const currentExitCount = sameDay ? user.dailyExitCount : 0;
 
-    if (action === "ENTRY" && dailyEntryCount >= DAILY_LIMIT) {
+    if (action === "ENTRY" && currentEntryCount >= DAILY_LIMIT) {
       return res.status(429).json({
         success: false,
         code: "DAILY_LIMIT",
@@ -221,11 +237,50 @@ export const verifyGate = async (req, res) => {
       });
     }
 
-    if (action === "EXIT" && dailyExitCount >= DAILY_LIMIT) {
+    if (action === "EXIT" && currentExitCount >= DAILY_LIMIT) {
       return res.status(429).json({
         success: false,
         code: "DAILY_LIMIT",
         message: "Daily exit limit reached. Please contact the gate office.",
+      });
+    }
+
+    const nextEntryCount = action === "ENTRY" ? currentEntryCount + 1 : currentEntryCount;
+    const nextExitCount = action === "EXIT" ? currentExitCount + 1 : currentExitCount;
+    const nowTs = new Date();
+
+    // --- Atomic, race-safe write ---
+    // The filter demands lastActionAt/isInsideCampus still equal what we
+    // just read. If a concurrent request already updated this user
+    // (e.g. a double-tap), those fields will have already changed and
+    // this matches zero documents — so only ONE of the racing requests
+    // can ever win and increment the counters / toggle the state.
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: user._id,
+        isInsideCampus: readIsInsideCampus,
+        lastActionAt: user.lastActionAt ?? null,
+      },
+      {
+        $set: {
+          isInsideCampus: !readIsInsideCampus,
+          lastActionAt: nowTs,
+          dailyCountDate: todayStart,
+          dailyEntryCount: nextEntryCount,
+          dailyExitCount: nextExitCount,
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      // Another request for this same user won the race between our
+      // read and our write. Nothing was written by us — safe to ask
+      // the client to just retry.
+      return res.status(409).json({
+        success: false,
+        code: "CONFLICT",
+        message: "Another request was just processed for this account. Please try again.",
       });
     }
 
@@ -248,14 +303,6 @@ export const verifyGate = async (req, res) => {
       distance: Math.round(distance),
     });
 
-    user.isInsideCampus = !user.isInsideCampus;
-    user.lastActionAt = new Date();
-    user.dailyCountDate = today;
-    user.dailyEntryCount = action === "ENTRY" ? dailyEntryCount + 1 : dailyEntryCount;
-    user.dailyExitCount = action === "EXIT" ? dailyExitCount + 1 : dailyExitCount;
-
-    await user.save();
-
     return res.status(200).json({
       success: true,
       message: `${action} Successful`,
@@ -264,8 +311,8 @@ export const verifyGate = async (req, res) => {
       gateName: gate.gateName,
       reason,
       distance: Math.round(distance),
-      isInsideCampus: user.isInsideCampus,
-      time: new Date().toISOString(),
+      isInsideCampus: updatedUser.isInsideCampus,
+      time: nowTs.toISOString(),
     });
   } catch (error) {
     console.error(error);

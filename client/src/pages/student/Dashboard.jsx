@@ -129,11 +129,10 @@ const StudentDashboard = () => {
 
         {/* Live Campus Status Banner */}
         <div
-          className={`rounded-3xl p-5 shadow-sm border transition-all duration-300 relative overflow-hidden ${
-            isInside
-              ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200/80"
-              : "bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border-indigo-200/80"
-          }`}
+          className={`rounded-3xl p-5 shadow-sm border transition-all duration-300 relative overflow-hidden ${isInside
+            ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200/80"
+            : "bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border-indigo-200/80"
+            }`}
         >
           <div className="flex items-center justify-between">
             <div>
@@ -142,14 +141,12 @@ const StudentDashboard = () => {
               </span>
               <div className="flex items-center gap-2">
                 <span
-                  className={`w-3 h-3 rounded-full ${
-                    isInside ? "bg-emerald-500 animate-pulse" : "bg-indigo-500"
-                  }`}
+                  className={`w-3 h-3 rounded-full ${isInside ? "bg-emerald-500 animate-pulse" : "bg-indigo-500"
+                    }`}
                 />
                 <span
-                  className={`text-lg font-black tracking-tight ${
-                    isInside ? "text-emerald-700" : "text-indigo-700"
-                  }`}
+                  className={`text-lg font-black tracking-tight ${isInside ? "text-emerald-700" : "text-indigo-700"
+                    }`}
                 >
                   {isInside ? "INSIDE CAMPUS" : "OUTSIDE CAMPUS"}
                 </span>
@@ -157,11 +154,10 @@ const StudentDashboard = () => {
             </div>
 
             <span
-              className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                isInside
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-indigo-100 text-indigo-800"
-              }`}
+              className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isInside
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-indigo-100 text-indigo-800"
+                }`}
             >
               {isInside ? "Exit Allowed" : "Entry Allowed"}
             </span>
@@ -252,11 +248,10 @@ const StudentDashboard = () => {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className={`w-8 h-8 rounded-xl font-black text-[10px] flex items-center justify-center shrink-0 ${
-                        item.status === "IN"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-indigo-100 text-indigo-700"
-                      }`}
+                      className={`w-8 h-8 rounded-xl font-black text-[10px] flex items-center justify-center shrink-0 ${item.status === "IN"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-indigo-100 text-indigo-700"
+                        }`}
                     >
                       {item.status === "IN" ? "IN" : "OUT"}
                     </span>
@@ -284,6 +279,12 @@ const StudentDashboard = () => {
           )}
         </div>
       </main>
+      {/* Footer */}
+      <footer className="mt-auto py-3 px-4 bg-[#0a1128] text-center border-t border-slate-800/60">
+        <p className="text-[10px] text-slate-400 font-medium truncate">
+          &copy; {new Date().getFullYear()} IIIT Pune. All rights reserved. &bull; Developed by <span className="text-white">Ayush Sabale</span>
+        </p>
+      </footer>
     </div>
   );
 };
