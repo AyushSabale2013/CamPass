@@ -102,41 +102,55 @@ const Login = () => {
             useOneTap
           />
 
-          <p className="text-center text-sm text-gray-400">
-            Authorized IIIT Pune users and Security personnel only.
-          </p>
+          <div className="text-center">
+            <p className="text-sm text-gray-400">
+              Authorized IIIT Pune users Only
+            </p>
+            <p className="text-[10px] font-medium mt-3 text-slate-400">
+              Designed & Developed by <span className="text-slate-900 font-semibold">Ayush Sabale</span>
+            </p>
+          </div>
         </div>
+
       </div>
+
+
 
       {/* Login Success Popup */}
       {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-sm w-full p-7 text-center transform animate-scaleIn">
-            <div className="mx-auto mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50">
-              <svg
-                className="w-9 h-9 text-emerald-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-md px-4 animate-fadeIn">
+          <div className="bg-white/95 backdrop-blur-xl rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.08)] border border-emerald-500/30 max-w-xs w-full p-6 text-center transform animate-scaleIn">
+
+            {/* Clean Bright Success Check Core */}
+            <div className="mx-auto mb-5 relative flex items-center justify-center w-14 h-14">
+              <div className="absolute inset-0 rounded-full bg-emerald-500/10 blur-xl animate-pulse"></div>
+              <div className="relative w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
+                <svg
+                  className="w-6 h-6 text-white stroke-[2.5]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
             </div>
-            <h2 className="text-xl font-bold text-slate-900">
+
+            <h2 className="text-base font-bold tracking-tight text-slate-900">
               Login Successful
             </h2>
-            <p className="text-slate-500 text-sm mt-2 leading-relaxed">
-              {welcomeName ? `Welcome back, ${welcomeName}.` : "Welcome back."} You're
-              now signed in.
+
+            <p className="text-slate-500 text-xs mt-1.5 leading-relaxed font-medium">
+              {welcomeName ? `Welcome back, ${welcomeName}.` : "Welcome back."} You are now signed in.
             </p>
+
             <button
               onClick={handleContinue}
-              className="w-full mt-6 bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 active:scale-[0.99] transition-all shadow-md shadow-blue-500/20 text-sm tracking-wide"
+              className="w-full mt-6 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-white py-3 rounded-2xl font-semibold text-xs tracking-wide shadow-md shadow-slate-900/10"
             >
               Continue
             </button>

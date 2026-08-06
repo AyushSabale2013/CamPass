@@ -1,14 +1,14 @@
+import logoImg from "../../assets/iiitp_logo.png";
+
 const Logo = () => {
   return (
     <div className="flex flex-col items-center pt-16">
 
-      <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center">
-
-        <span className="text-white text-4xl font-bold">
-          C
-        </span>
-
-      </div>
+      <img
+        src={logoImg}
+        alt="College Logo"
+        className="w-60 h-60 object-contain"
+      />
 
       <h1 className="text-4xl font-bold mt-6 text-slate-800">
         CamPass

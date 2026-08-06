@@ -43,14 +43,14 @@ const AdminDashboard = () => {
   return (
     <PageContainer>
       <div className="flex flex-col min-h-screen bg-slate-100 max-w-md mx-auto shadow-2xl overflow-x-hidden font-sans">
-        
+
         {/* Top Header with Logout */}
         <header className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between sticky top-0 z-20 shadow-md">
           <div>
             <h1 className="text-sm font-bold tracking-wider uppercase text-slate-100">Admin Portal</h1>
             <p className="text-[11px] text-slate-400 font-medium">Campus Access Control Center</p>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition shadow-sm flex items-center gap-1.5"
           >
@@ -63,7 +63,7 @@ const AdminDashboard = () => {
 
         {/* Main Feed Container */}
         <main className="p-4 space-y-4 pb-12 flex-1">
-          
+
           {/* Profile Card */}
           {dashboardData && (
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
@@ -89,7 +89,7 @@ const AdminDashboard = () => {
             <div className="space-y-3.5">
 
               {/* Manage Users Block */}
-              <div 
+              <div
                 onClick={() => navigate("/admin/users")}
                 className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-emerald-300 hover:shadow-md transition flex items-center justify-between group"
               >
@@ -113,7 +113,7 @@ const AdminDashboard = () => {
               </div>
 
               {/* Manage Gates Block */}
-              <div 
+              <div
                 onClick={() => navigate("/admin/gates")}
                 className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-amber-300 hover:shadow-md transition flex items-center justify-between group"
               >
@@ -138,7 +138,7 @@ const AdminDashboard = () => {
               </div>
 
               {/* Export Logs Block */}
-              <div 
+              <div
                 onClick={() => navigate("/admin/logs")}
                 className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition flex items-center justify-between group"
               >
@@ -162,7 +162,7 @@ const AdminDashboard = () => {
               </div>
 
               {/* Reset System Block */}
-              <div 
+              <div
                 onClick={() => navigate("/admin/reset")}
                 className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-rose-300 hover:shadow-md transition flex items-center justify-between group"
               >
@@ -189,6 +189,12 @@ const AdminDashboard = () => {
           )}
 
         </main>
+        {/* Footer */}
+        <footer className="mt-auto py-3 px-4 bg-[#0a1128] text-center border-t border-slate-800/60">
+          <p className="text-[10px] text-slate-400 font-medium truncate">
+            &copy; {new Date().getFullYear()} IIIT Pune. All rights reserved. &bull; Designed & Developed by <span className="text-white">Ayush Sabale</span>
+          </p>
+        </footer>
 
       </div>
     </PageContainer>
