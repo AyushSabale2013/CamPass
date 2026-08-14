@@ -1,14 +1,34 @@
 import { useState, useMemo } from "react";
 import LogCard from "../../components/security/LogCard";
 
+// Reads a log's gate name from whichever shape the API sends it in —
+// mirrors the same "try a few known field names" pattern already used
+// for studentName/mis/email below, so it stays consistent even if the
+// backend nests gate info differently across endpoints.
+const getGateName = (log) =>
+  log.gateName || log.gate?.name || log.gate?.gateName || log.gate || "";
+
 const TodaysLogsView = ({ logs, fetching, total, setView }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "IN" | "OUT"
+  const [gateFilter, setGateFilter] = useState("all"); // "all" | exact gate name
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Filter logs based on search term, status pill tab, and time range
+  // Unique gate names present in today's logs, so the filter always
+  // matches real data (e.g. "Main Gate", "Godavari") instead of a
+  // hardcoded list that could drift if gates are renamed or added.
+  const availableGates = useMemo(() => {
+    const names = new Set();
+    logs.forEach((log) => {
+      const gateName = getGateName(log);
+      if (gateName) names.add(gateName);
+    });
+    return Array.from(names).sort();
+  }, [logs]);
+
+  // Filter logs based on search term, status pill tab, gate, and time range
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       const name = (log.studentName || log.student?.name || log.name || "").toLowerCase();
@@ -31,6 +51,11 @@ const TodaysLogsView = ({ logs, fetching, total, setView }) => {
         return false;
       }
 
+      // Match Gate Filter
+      if (gateFilter !== "all" && getGateName(log) !== gateFilter) {
+        return false;
+      }
+
       // Match Time Range if log has a createdAt timestamp
       if (!log.createdAt) return true;
 
@@ -48,11 +73,12 @@ const TodaysLogsView = ({ logs, fetching, total, setView }) => {
 
       return true;
     });
-  }, [logs, searchTerm, statusFilter, startTime, endTime]);
+  }, [logs, searchTerm, statusFilter, gateFilter, startTime, endTime]);
 
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
+    setGateFilter("all");
     setStartTime("");
     setEndTime("");
   };
@@ -67,7 +93,11 @@ const TodaysLogsView = ({ logs, fetching, total, setView }) => {
     }
   };
 
-  const activeFiltersCount = (searchTerm ? 1 : 0) + (statusFilter !== "all" ? 1 : 0) + (startTime || endTime ? 1 : 0);
+  const activeFiltersCount =
+    (searchTerm ? 1 : 0) +
+    (statusFilter !== "all" ? 1 : 0) +
+    (gateFilter !== "all" ? 1 : 0) +
+    (startTime || endTime ? 1 : 0);
 
   const timePresets = [
     { label: "Morning", sub: "6 AM–12 PM", start: "06:00", end: "12:00" },
@@ -142,7 +172,7 @@ const TodaysLogsView = ({ logs, fetching, total, setView }) => {
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
             className={`px-3 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 shrink-0 ${
-              showAdvanced || startTime || endTime
+              showAdvanced || startTime || endTime || gateFilter !== "all"
                 ? "bg-slate-900 text-white border-slate-900 shadow-sm"
                 : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
             }`}
@@ -150,43 +180,78 @@ const TodaysLogsView = ({ logs, fetching, total, setView }) => {
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Time Filter
-            {(startTime || endTime) && (
+            More Filters
+            {(startTime || endTime || gateFilter !== "all") && (
               <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
             )}
           </button>
         </div>
 
-        {/* Expandable Time Range Filter Drawer */}
+        {/* Expandable Gate + Time Range Filter Drawer */}
         {showAdvanced && (
           <div className="pt-3 border-t border-slate-100 space-y-3 animate-fadeIn">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                Filter by Time Slot
-              </h3>
-            </div>
-
-            {/* Quick Presets (Only 4 options) */}
-            <div className="grid grid-cols-2 gap-2">
-              {timePresets.map((preset) => {
-                const isActive = startTime === preset.start && endTime === preset.end;
-                return (
+            {/* Gate Filter */}
+            {availableGates.length > 0 && (
+              <div>
+                <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-wide mb-2">
+                  Filter by Gate
+                </h3>
+                <div className="flex flex-wrap gap-2">
                   <button
-                    key={preset.label}
-                    onClick={() => applyPreset(preset.start, preset.end)}
-                    className={`flex flex-col items-start px-3 py-2 rounded-xl border text-left transition-all active:scale-95 ${
-                      isActive
+                    onClick={() => setGateFilter("all")}
+                    className={`px-3 py-1.5 rounded-full border text-[11px] font-bold transition-all active:scale-95 ${
+                      gateFilter === "all"
                         ? "border-slate-900 bg-slate-900 text-white shadow-sm"
                         : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                     }`}
                   >
-                    <span className="text-xs font-bold">{preset.label}</span>
-                    <span className={`text-[10px] ${isActive ? "text-slate-300" : "text-slate-400"}`}>
-                      {preset.sub}
-                    </span>
+                    All Gates
                   </button>
-                );
-              })}
+                  {availableGates.map((gateName) => (
+                    <button
+                      key={gateName}
+                      onClick={() =>
+                        setGateFilter(gateFilter === gateName ? "all" : gateName)
+                      }
+                      className={`px-3 py-1.5 rounded-full border text-[11px] font-bold transition-all active:scale-95 ${
+                        gateFilter === gateName
+                          ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                          : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {gateName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Time Presets (Only 4 options) */}
+            <div>
+              <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-wide mb-2">
+                Filter by Time Slot
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {timePresets.map((preset) => {
+                  const isActive = startTime === preset.start && endTime === preset.end;
+                  return (
+                    <button
+                      key={preset.label}
+                      onClick={() => applyPreset(preset.start, preset.end)}
+                      className={`flex flex-col items-start px-3 py-2 rounded-xl border text-left transition-all active:scale-95 ${
+                        isActive
+                          ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                          : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      <span className="text-xs font-bold">{preset.label}</span>
+                      <span className={`text-[10px] ${isActive ? "text-slate-300" : "text-slate-400"}`}>
+                        {preset.sub}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

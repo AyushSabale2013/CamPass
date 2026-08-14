@@ -11,6 +11,11 @@ const TIME_SLOTS = [
   { id: "night", label: "Night", sub: "9 PM–12 AM", start: "21:00", end: "23:59" },
 ];
 
+// Reads a log's gate name from whichever shape the API sends it in —
+// same defensive lookup pattern used for studentName/mis/email below.
+const getGateName = (log) =>
+  log.gateName || log.gate?.name || log.gate?.gateName || log.gate || "";
+
 // Local YYYY-MM-DD (matches the format <input type="date"> uses, and the
 // same local-time formatting the filter already applies to log dates).
 const toDateInputValue = (date) => {
@@ -23,6 +28,7 @@ const toDateInputValue = (date) => {
 const AllLogsView = ({ logs, fetching, setView }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "IN" | "OUT"
+  const [gateFilter, setGateFilter] = useState("all"); // "all" | exact gate name
   const [selectedDate, setSelectedDate] = useState("");
   const [timeSlot, setTimeSlot] = useState("all"); // "all" | "morning" | "afternoon" | "evening" | "night"
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -34,13 +40,25 @@ const AllLogsView = ({ logs, fetching, setView }) => {
     return toDateInputValue(d);
   }, []);
 
-  // Filter logs based on search term, status pill tab, specific date, and time-of-day slot.
+  // Unique gate names present in the loaded logs, so the filter always
+  // matches real data (e.g. "Main Gate", "Godavari") instead of a
+  // hardcoded list that could drift if gates are renamed or added.
+  const availableGates = useMemo(() => {
+    const names = new Set();
+    logs.forEach((log) => {
+      const gateName = getGateName(log);
+      if (gateName) names.add(gateName);
+    });
+    return Array.from(names).sort();
+  }, [logs]);
+
+  // Filter logs based on search term, status pill tab, gate, specific date, and time-of-day slot.
   const filteredLogs = useMemo(() => {
     const query = searchTerm.toLowerCase().trim();
     const activeSlot = timeSlot !== "all" ? TIME_SLOTS.find((s) => s.id === timeSlot) : null;
     // Skip parsing/formatting createdAt entirely when no date/time filter
     // is active — avoids a `new Date()` + string-pad on every row for the
-    // most common view state (just search/status, no date narrowing).
+    // most common view state (just search/status/gate, no date narrowing).
     const needsDateInfo = Boolean(selectedDate) || Boolean(activeSlot);
 
     return logs.filter((log) => {
@@ -59,6 +77,11 @@ const AllLogsView = ({ logs, fetching, setView }) => {
 
       // Match Status Filter (IN / OUT)
       if (statusFilter !== "all" && log.status !== statusFilter) {
+        return false;
+      }
+
+      // Match Gate Filter
+      if (gateFilter !== "all" && getGateName(log) !== gateFilter) {
         return false;
       }
 
@@ -85,11 +108,12 @@ const AllLogsView = ({ logs, fetching, setView }) => {
 
       return true;
     });
-  }, [logs, searchTerm, statusFilter, selectedDate, timeSlot]);
+  }, [logs, searchTerm, statusFilter, gateFilter, selectedDate, timeSlot]);
 
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
+    setGateFilter("all");
     setSelectedDate("");
     setTimeSlot("all");
   };
@@ -102,6 +126,7 @@ const AllLogsView = ({ logs, fetching, setView }) => {
   const activeFiltersCount =
     (searchTerm ? 1 : 0) +
     (statusFilter !== "all" ? 1 : 0) +
+    (gateFilter !== "all" ? 1 : 0) +
     (selectedDate ? 1 : 0) +
     (timeSlot !== "all" ? 1 : 0);
 
@@ -171,7 +196,7 @@ const AllLogsView = ({ logs, fetching, setView }) => {
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
             className={`px-3 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 shrink-0 ${
-              showAdvanced || selectedDate || timeSlot !== "all"
+              showAdvanced || selectedDate || timeSlot !== "all" || gateFilter !== "all"
                 ? "bg-slate-900 text-white border-slate-900 shadow-sm"
                 : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
             }`}
@@ -180,17 +205,64 @@ const AllLogsView = ({ logs, fetching, setView }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             Filters
-            {(selectedDate || timeSlot !== "all") && (
+            {(selectedDate || timeSlot !== "all" || gateFilter !== "all") && (
               <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
             )}
           </button>
         </div>
 
-        {/* Expandable Date + Time-of-Day Filter Drawer */}
+        {/* Expandable Gate + Date + Time-of-Day Filter Drawer */}
         {showAdvanced && (
           <div className="pt-3 border-t border-slate-100 space-y-4 animate-fadeIn">
+            {/* --- Gate Section --- */}
+            {availableGates.length > 0 && (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                    Filter by Gate
+                  </h3>
+                  {gateFilter !== "all" && (
+                    <button
+                      onClick={() => setGateFilter("all")}
+                      className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setGateFilter("all")}
+                    className={`px-3 py-1.5 rounded-full border text-[11px] font-bold transition-all active:scale-95 ${
+                      gateFilter === "all"
+                        ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                        : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    All Gates
+                  </button>
+                  {availableGates.map((gateName) => (
+                    <button
+                      key={gateName}
+                      onClick={() =>
+                        setGateFilter(gateFilter === gateName ? "all" : gateName)
+                      }
+                      className={`px-3 py-1.5 rounded-full border text-[11px] font-bold transition-all active:scale-95 ${
+                        gateFilter === gateName
+                          ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                          : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {gateName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* --- Date Section --- */}
-            <div className="space-y-2.5">
+            <div className={`space-y-2.5 ${availableGates.length > 0 ? "pt-3 border-t border-slate-100" : ""}`}>
               <div className="flex items-center justify-between">
                 <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
                   Filter by Date
@@ -293,12 +365,15 @@ const AllLogsView = ({ logs, fetching, setView }) => {
               </div>
             </div>
 
-            {(selectedDate || timeSlot !== "all") && (
+            {(selectedDate || timeSlot !== "all" || gateFilter !== "all") && (
               <button
-                onClick={clearDateAndTimeFilters}
+                onClick={() => {
+                  clearDateAndTimeFilters();
+                  setGateFilter("all");
+                }}
                 className="w-full text-center text-[11px] font-bold text-rose-600 hover:text-rose-700 transition pt-1"
               >
-                Clear Date & Time Filters
+                Clear Gate, Date & Time Filters
               </button>
             )}
           </div>
