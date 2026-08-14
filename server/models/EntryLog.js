@@ -7,7 +7,7 @@ export const TRANSPORT_MODES = ["SELF", "SCHOOL_BUS"];
 export const ENTRY_REASONS = [
     "Appointment",
     "College Lectures",
-    "Study",
+    "Godavari Hostel",
     "Visit",
     "Interview",
     "Sports",
@@ -25,7 +25,7 @@ export const EXIT_REASONS = [
     "Railway Station",
     "Home Visit",
     "Shopping",
-    "Internship",
+    "Godavari to College",
     "Emergency",
     "Talegaon", 
     "Other",

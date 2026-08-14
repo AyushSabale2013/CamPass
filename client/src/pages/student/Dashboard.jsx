@@ -30,6 +30,9 @@ const StudentDashboard = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
+  
+  // State for the Important Notice Modal
+  const [showNotice, setShowNotice] = useState(false);
 
   // Clock tick for live display
   useEffect(() => {
@@ -126,6 +129,27 @@ const StudentDashboard = () => {
             </p>
           </div>
         </div>
+
+        {/* Warning / Important Notice Button */}
+        <button
+          onClick={() => setShowNotice(true)}
+          className="flex items-center justify-between w-full p-3.5 rounded-3xl bg-rose-50 border border-rose-100 hover:bg-rose-100 transition-colors active:scale-[0.98] shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white text-rose-600 flex items-center justify-center shadow-sm border border-rose-100">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-bold text-rose-800">Important Rules & Warnings</p>
+              <p className="text-[10px] text-rose-500 font-medium">Read before generating passes</p>
+            </div>
+          </div>
+          <svg className="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
 
         {/* Live Campus Status Banner */}
         <div
@@ -339,6 +363,56 @@ const StudentDashboard = () => {
           Developed by <span className="text-white">Ayush Sabale</span>
         </p>
       </footer>
+
+      {/* --- MODAL OVERLAY --- */}
+      {showNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity">
+          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="bg-rose-500 p-6 text-center relative">
+              <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-md text-rose-500">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-black text-white">Important Notice</h3>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 text-sm text-slate-600 font-medium">
+              <p>
+                You are allotted a strict limit of <strong className="text-slate-900">30 Outside passes</strong> and <strong className="text-slate-900">30 Inside passes</strong>.
+              </p>
+              <p>
+                Please use them carefully and <strong className="text-slate-900">only in necessary cases</strong>. Do not use your passes unnecessarily.
+              </p>
+              
+              {/* Strict Warning Box */}
+              <div className="p-3.5 bg-rose-50 rounded-xl border border-rose-100 text-rose-800 text-[13px] leading-snug">
+                <strong className="flex items-center gap-1.5 mb-1 text-rose-900">
+                  <span className="text-rose-600">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </span>
+                  Strict Action Warning:
+                </strong>
+                If you are found making false entries or misusing the gate pass system, you will be liable for strict disciplinary actions from the college administration.
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100">
+              <button
+                onClick={() => setShowNotice(false)}
+                className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 active:scale-[0.98] transition-all shadow-md"
+              >
+                I Understand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -15,6 +15,16 @@ import Loader from "../../components/common/Loader";
 // applies when reason === "Other").
 const NOTE_REASON = "Other";
 
+// Any GPS fix worse (larger) than this is too noisy to trust for a
+// gate-radius check — treat it as "still acquiring" rather than granted.
+const MAX_ACCEPTABLE_ACCURACY_METERS = 75;
+
+// Network resilience for the verifyGate submission — a plain fetch with
+// no timeout can hang indefinitely on flaky connections.
+const SUBMIT_TIMEOUT_MS = 15000;
+const SUBMIT_MAX_RETRIES = 2; // total attempts = 1 + retries
+const SUBMIT_RETRY_DELAY_MS = 1500;
+
 /**
  * Calculates distance in meters between two lat/lon coordinates using Haversine formula.
  */
@@ -30,6 +40,49 @@ const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Runs verifyGate with a timeout + limited retries. Only retries on
+ * network-level failures (no response reached the server) or a client
+ * timeout — never on a request that actually got a response, since
+ * retrying a completed server-side action (e.g. a logged entry) could
+ * double-submit.
+ */
+const verifyGateWithResilience = async (payload) => {
+  let lastError;
+
+  for (let attempt = 0; attempt <= SUBMIT_MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+
+    try {
+      const response = await verifyGate(payload, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      lastError = err;
+
+      // Server responded (even with an error status) — do not retry,
+      // surface it immediately so COOLDOWN / DAILY_LIMIT etc. show up.
+      const gotServerResponse = Boolean(err?.response);
+      if (gotServerResponse) {
+        throw err;
+      }
+
+      const isLastAttempt = attempt === SUBMIT_MAX_RETRIES;
+      if (isLastAttempt) {
+        throw err;
+      }
+
+      await sleep(SUBMIT_RETRY_DELAY_MS * (attempt + 1));
+    }
+  }
+
+  throw lastError;
 };
 
 // ==========================================
@@ -132,9 +185,22 @@ const StudentProfileCard = ({ user }) => (
   </div>
 );
 
-/** GPS Status Card */
-const GpsCard = ({ gpsStatus, gpsVerified, distance, allowedRadius }) => {
+/** GPS Status Card
+ *  gpsStatus now distinguishes: "pending" | "denied" | "unavailable" |
+ *  "timeout" | "granted" — each with its own message, instead of
+ *  collapsing every failure into "Permission Denied". Also surfaces a
+ *  low-accuracy warning when a fix arrives but is too noisy to trust. */
+const GpsCard = ({ gpsStatus, gpsVerified, distance, allowedRadius, accuracy }) => {
   const roundedDist = distance !== null ? Math.round(distance) : null;
+  const roundedAccuracy = accuracy !== null ? Math.round(accuracy) : null;
+  const isLowAccuracy =
+    gpsStatus === "granted" && accuracy !== null && accuracy > MAX_ACCEPTABLE_ACCURACY_METERS;
+
+  const dotColor = gpsVerified
+    ? "emerald"
+    : gpsStatus === "denied" || gpsStatus === "unavailable" || gpsStatus === "timeout"
+      ? "rose"
+      : "amber";
 
   return (
     <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
@@ -144,32 +210,17 @@ const GpsCard = ({ gpsStatus, gpsVerified, distance, allowedRadius }) => {
         </span>
         <div className="relative flex h-3 w-3">
           <span
-            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${gpsVerified
-              ? "bg-emerald-400"
-              : gpsStatus === "denied"
-                ? "bg-rose-400"
-                : "bg-amber-400"
-              }`}
+            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-${dotColor}-400`}
           />
           <span
-            className={`relative inline-flex rounded-full h-3 w-3 ${gpsVerified
-              ? "bg-emerald-500"
-              : gpsStatus === "denied"
-                ? "bg-rose-500"
-                : "bg-amber-500"
-              }`}
+            className={`relative inline-flex rounded-full h-3 w-3 bg-${dotColor}-500`}
           />
         </div>
       </div>
 
       <div className="flex items-center gap-3">
         <div
-          className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${gpsVerified
-            ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-            : gpsStatus === "denied"
-              ? "bg-rose-50 text-rose-600 border border-rose-200"
-              : "bg-amber-50 text-amber-600 border border-amber-200"
-            }`}
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-${dotColor}-50 text-${dotColor}-600 border border-${dotColor}-200`}
         >
           <svg
             className="w-6 h-6"
@@ -210,7 +261,32 @@ const GpsCard = ({ gpsStatus, gpsVerified, distance, allowedRadius }) => {
                 Permission Denied
               </h3>
               <p className="text-xs text-slate-500">
-                Please enable location permissions in browser settings.
+                Please enable location permissions in your browser settings
+                and reload this page.
+              </p>
+            </>
+          )}
+
+          {gpsStatus === "unavailable" && (
+            <>
+              <h3 className="text-sm font-bold text-rose-600">
+                Location Unavailable
+              </h3>
+              <p className="text-xs text-slate-500">
+                Couldn't get a GPS fix. Move to an open area (away from
+                buildings) and check your device's location is turned on.
+              </p>
+            </>
+          )}
+
+          {gpsStatus === "timeout" && (
+            <>
+              <h3 className="text-sm font-bold text-rose-600">
+                Signal Timed Out
+              </h3>
+              <p className="text-xs text-slate-500">
+                GPS took too long to respond. Retrying automatically — stay
+                on this page.
               </p>
             </>
           )}
@@ -228,7 +304,19 @@ const GpsCard = ({ gpsStatus, gpsVerified, distance, allowedRadius }) => {
             </>
           )}
 
-          {gpsStatus === "granted" && !gpsVerified && (
+          {gpsStatus === "granted" && !gpsVerified && isLowAccuracy && (
+            <>
+              <h3 className="text-sm font-bold text-amber-600">
+                Improving GPS Accuracy…
+              </h3>
+              <p className="text-xs text-slate-500">
+                Signal accuracy is &plusmn;{roundedAccuracy}m, too rough to
+                verify reliably. Step outside if you're indoors.
+              </p>
+            </>
+          )}
+
+          {gpsStatus === "granted" && !gpsVerified && !isLowAccuracy && (
             <>
               <h3 className="text-sm font-bold text-amber-600">
                 Outside Allowed Gate Radius
@@ -820,6 +908,8 @@ const GateScanner = () => {
   const [loadingGate, setLoadingGate] = useState(true);
 
   const [coords, setCoords] = useState(null);
+  const [accuracy, setAccuracy] = useState(null);
+  // "pending" | "denied" | "unavailable" | "timeout" | "granted"
   const [gpsStatus, setGpsStatus] = useState("pending");
 
   const [reason, setReason] = useState("");
@@ -875,8 +965,19 @@ const GateScanner = () => {
     };
   }, [slug]);
 
+  // Watches position and maps the three distinct GeolocationPositionError
+  // codes to distinct statuses instead of collapsing everything into
+  // "denied". PERMISSION_DENIED (1) really is permission; POSITION_UNAVAILABLE
+  // (2) means no fix could be obtained (bad signal / no GPS chip / no
+  // network for WiFi positioning); TIMEOUT (3) means it took too long and
+  // watchPosition will keep trying on its own.
   useEffect(() => {
-    if (!gate || !navigator.geolocation) return;
+    if (!gate) return;
+
+    if (!navigator.geolocation) {
+      setGpsStatus("unavailable");
+      return;
+    }
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
@@ -884,10 +985,26 @@ const GateScanner = () => {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         });
+        setAccuracy(
+          typeof position.coords.accuracy === "number"
+            ? position.coords.accuracy
+            : null
+        );
         setGpsStatus("granted");
       },
-      () => {
-        setGpsStatus("denied");
+      (geoError) => {
+        switch (geoError?.code) {
+          case 1: // PERMISSION_DENIED
+            setGpsStatus("denied");
+            break;
+          case 3: // TIMEOUT
+            setGpsStatus("timeout");
+            break;
+          case 2: // POSITION_UNAVAILABLE
+          default:
+            setGpsStatus("unavailable");
+            break;
+        }
       },
       {
         enableHighAccuracy: true,
@@ -913,14 +1030,22 @@ const GateScanner = () => {
     );
   }, [gate, coords]);
 
+  // A fix only "counts" if it's both within radius AND precise enough to
+  // trust. Without the accuracy check, a rough WiFi-based fix (common on
+  // laptops or with weak signal) could wrongly pass or fail the check.
+  const isAccuracyAcceptable = useMemo(() => {
+    return accuracy === null || accuracy <= MAX_ACCEPTABLE_ACCURACY_METERS;
+  }, [accuracy]);
+
   const gpsVerified = useMemo(() => {
     return (
       gpsStatus === "granted" &&
       gate &&
       distance !== null &&
-      distance <= (gate.radius || 200)
+      distance <= (gate.radius || 200) &&
+      isAccuracyAcceptable
     );
-  }, [gpsStatus, gate, distance]);
+  }, [gpsStatus, gate, distance, isAccuracyAcceptable]);
 
   // Which list applies depends on direction: inside campus -> about to
   // EXIT -> exit reasons; outside campus -> about to ENTER -> entry reasons.
@@ -939,8 +1064,20 @@ const GateScanner = () => {
       return;
     }
 
-    if (gpsStatus !== "granted" || !coords) {
-      setError("Location permission is denied or pending. Enable GPS.");
+    if (gpsStatus === "denied") {
+      setError("Location permission is denied. Enable it in browser settings and reload.");
+      return;
+    }
+
+    if (gpsStatus === "unavailable" || gpsStatus === "timeout" || !coords) {
+      setError("Still trying to get a GPS fix. Please wait a moment and try again.");
+      return;
+    }
+
+    if (!isAccuracyAcceptable) {
+      setError(
+        `GPS signal too weak to verify (±${Math.round(accuracy)}m). Move to an open area and try again.`
+      );
       return;
     }
 
@@ -962,12 +1099,13 @@ const GateScanner = () => {
         slug,
         latitude: coords.latitude,
         longitude: coords.longitude,
+        accuracy,
         reason,
         additionalNote: reason === NOTE_REASON ? note : undefined,
         transportMode,
       };
 
-      const response = await verifyGate(payload);
+      const response = await verifyGateWithResilience(payload);
 
       // verifyGate's response IS the log summary — no nested "pass" key.
       setVerification(response.data);
@@ -988,6 +1126,11 @@ const GateScanner = () => {
           type: "DAILY_LIMIT",
           action: user?.isInsideCampus ? "EXIT" : "ENTRY",
         });
+      } else if (!err.response) {
+        // No server response after retries — genuine connectivity issue.
+        setError(
+          "Couldn't reach the server. Please check your internet connection and try again."
+        );
       } else {
         setError(
           message ||
@@ -997,7 +1140,21 @@ const GateScanner = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [reason, gpsStatus, coords, gpsVerified, distance, gate, slug, note, transportMode, loadUser, user?.isInsideCampus]);
+  }, [
+    reason,
+    gpsStatus,
+    coords,
+    gpsVerified,
+    isAccuracyAcceptable,
+    accuracy,
+    distance,
+    gate,
+    slug,
+    note,
+    transportMode,
+    loadUser,
+    user?.isInsideCampus,
+  ]);
 
   const handleGoToDashboard = useCallback(() => {
     navigate("/student/dashboard");
@@ -1058,6 +1215,7 @@ const GateScanner = () => {
           gpsVerified={gpsVerified}
           distance={distance}
           allowedRadius={gate.radius || 200}
+          accuracy={accuracy}
         />
 
         {/* Transport Mode Selection Card */}
