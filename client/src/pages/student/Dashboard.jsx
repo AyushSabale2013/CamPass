@@ -129,10 +129,11 @@ const StudentDashboard = () => {
 
         {/* Live Campus Status Banner */}
         <div
-          className={`rounded-3xl p-5 shadow-sm border transition-all duration-300 relative overflow-hidden ${isInside
-            ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200/80"
-            : "bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border-indigo-200/80"
-            }`}
+          className={`rounded-3xl p-5 shadow-sm border transition-all duration-300 relative overflow-hidden ${
+            isInside
+              ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200/80"
+              : "bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border-indigo-200/80"
+          }`}
         >
           <div className="flex items-center justify-between">
             <div>
@@ -141,12 +142,14 @@ const StudentDashboard = () => {
               </span>
               <div className="flex items-center gap-2">
                 <span
-                  className={`w-3 h-3 rounded-full ${isInside ? "bg-emerald-500 animate-pulse" : "bg-indigo-500"
-                    }`}
+                  className={`w-3 h-3 rounded-full ${
+                    isInside ? "bg-emerald-500 animate-pulse" : "bg-indigo-500"
+                  }`}
                 />
                 <span
-                  className={`text-lg font-black tracking-tight ${isInside ? "text-emerald-700" : "text-indigo-700"
-                    }`}
+                  className={`text-lg font-black tracking-tight ${
+                    isInside ? "text-emerald-700" : "text-indigo-700"
+                  }`}
                 >
                   {isInside ? "INSIDE CAMPUS" : "OUTSIDE CAMPUS"}
                 </span>
@@ -154,10 +157,11 @@ const StudentDashboard = () => {
             </div>
 
             <span
-              className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isInside
-                ? "bg-emerald-100 text-emerald-800"
-                : "bg-indigo-100 text-indigo-800"
-                }`}
+              className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                isInside
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-indigo-100 text-indigo-800"
+              }`}
             >
               {isInside ? "Exit Allowed" : "Entry Allowed"}
             </span>
@@ -169,29 +173,76 @@ const StudentDashboard = () => {
           <h2 className="text-sm font-bold text-slate-900 mb-1">
             Gate Verification
           </h2>
-          <p className="text-xs text-slate-500 mb-4">
+          <p className="text-xs text-slate-500 mb-2">
             Scan a QR code or select a gate to log your entry or exit.
           </p>
 
-          <button
-            onClick={() => navigate("/gate/main-gate")}
-            className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-98 shadow-md shadow-slate-900/10"
-          >
-            <svg
-              className="w-4 h-4 text-blue-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.5"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Simulate Gate Scanner
-          </button>
+          {/* Choose Gate Grid */}
+          <div className="mt-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+              Choose Gate
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* Main Gate */}
+              <button
+                onClick={() => navigate("/gate/main-gate")}
+                className="group p-4 rounded-2xl border border-slate-200 bg-white hover:border-blue-500 hover:bg-blue-50/50 transition-all active:scale-95 text-left shadow-xs"
+              >
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-3 group-hover:bg-blue-600 transition-colors">
+                  <svg
+                    className="w-5 h-5 text-blue-600 group-hover:text-white transition-colors"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"
+                    />
+                  </svg>
+                </div>
+
+                <p className="font-bold text-sm text-slate-800 group-hover:text-blue-600 transition-colors">
+                  Main Gate
+                </p>
+
+                <p className="text-xs text-slate-400 mt-1">College Main Entry</p>
+              </button>
+
+              {/* Godavari Gate */}
+              <button
+                onClick={() => navigate("/gate/godavari-gate")}
+                className="group p-4 rounded-2xl border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50/50 transition-all active:scale-95 text-left shadow-xs"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-3 group-hover:bg-emerald-600 transition-colors">
+                  <svg
+                    className="w-5 h-5 text-emerald-600 group-hover:text-white transition-colors"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                    />
+                  </svg>
+                </div>
+
+                <p className="font-bold text-sm text-slate-800 group-hover:text-emerald-600 transition-colors">
+                  Godavari Gate
+                </p>
+
+                <p className="text-xs text-slate-400 mt-1">
+                  Godavari Hostel Entry
+                </p>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Recent Pass Logs History */}
@@ -248,10 +299,11 @@ const StudentDashboard = () => {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className={`w-8 h-8 rounded-xl font-black text-[10px] flex items-center justify-center shrink-0 ${item.status === "IN"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-indigo-100 text-indigo-700"
-                        }`}
+                      className={`w-8 h-8 rounded-xl font-black text-[10px] flex items-center justify-center shrink-0 ${
+                        item.status === "IN"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-indigo-100 text-indigo-700"
+                      }`}
                     >
                       {item.status === "IN" ? "IN" : "OUT"}
                     </span>
@@ -279,10 +331,12 @@ const StudentDashboard = () => {
           )}
         </div>
       </main>
+
       {/* Footer */}
       <footer className="mt-auto py-3 px-4 bg-[#0a1128] text-center border-t border-slate-800/60">
         <p className="text-[10px] text-slate-400 font-medium truncate">
-          &copy; {new Date().getFullYear()} IIIT Pune. All rights reserved. &bull; Developed by <span className="text-white">Ayush Sabale</span>
+          &copy; {new Date().getFullYear()} IIIT Pune. All rights reserved. &bull;{" "}
+          Developed by <span className="text-white">Ayush Sabale</span>
         </p>
       </footer>
     </div>
