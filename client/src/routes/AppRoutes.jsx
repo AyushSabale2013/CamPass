@@ -25,19 +25,16 @@ const AppRoutes = () => {
     <Routes>
 
       {/* Public Routes */}
-
       <Route path="/" element={<Login />} />
       <Route path="/complete-profile" element={<CompleteProfile />} />
 
       {/* QR scans land here first. GateJunction reads the logged-in
-          user's role and redirects to the right destination — students
-          go on to the scanner, security/admin go straight to their
-          dashboards. This is what keeps a security guard's scan from
-          ever reaching GateScanner. */}
+          user's role and redirects to the right destination. */}
+      {/* FIX: Added a base /gate route just in case someone scans a link without a slug, preventing a 404 crash */}
+      <Route path="/gate" element={<GateJunction />} />
       <Route path="/gate/:slug" element={<GateJunction />} />
 
       {/* Student */}
-
       <Route
         path="/student/dashboard"
         element={
@@ -66,7 +63,6 @@ const AppRoutes = () => {
       />
 
       {/* Security Guard */}
-
       <Route
         path="/security/dashboard"
         element={
@@ -77,7 +73,6 @@ const AppRoutes = () => {
       />
 
       {/* Admin */}
-
       <Route
         path="/admin/dashboard"
         element={
