@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 
@@ -12,10 +11,6 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [redirectPath, setRedirectPath] = useState(null);
-  const [welcomeName, setWelcomeName] = useState("");
-
   const handleSuccess = async (credentialResponse) => {
     try {
       if (!credentialResponse?.credential) {
@@ -28,28 +23,17 @@ const Login = () => {
 
       // Existing User Flow (Student, Security, or Admin)
       if (data.isRegistered) {
-        login(data.user, data.token);
-
-        // Direct Role-Based Redirects
-        if (data.user?.role === "security") {
-          setWelcomeName(data.user?.name || "");
-          setRedirectPath("/security/dashboard");
-          setShowSuccessModal(true);
-          return;
-        }
-
-        if (data.user?.role === "admin") {
-          setWelcomeName(data.user?.name || "");
-          setRedirectPath("/admin/dashboard");
-          setShowSuccessModal(true);
-          return;
-        }
-
-        // Student Navigation Flow — always route to gate scanner
+        const user = data.user;
+        login(user, data.token);
         sessionStorage.removeItem("redirectAfterLogin");
-        setWelcomeName(data.user?.name || "");
-        setRedirectPath("/gate/main-gate");
-        setShowSuccessModal(true);
+
+        if (user.role === "student") {
+          navigate("/student/dashboard", { replace: true });
+        } else if (user.role === "security") {
+          navigate("/security/dashboard", { replace: true });
+        } else if (user.role === "admin") {
+          navigate("/admin/dashboard", { replace: true });
+        }
         return;
       }
 
@@ -73,12 +57,6 @@ const Login = () => {
   const handleError = () => {
     console.error("Google Login Component Error");
     alert("Google Sign-In failed or was closed. Please try again.");
-  };
-
-  const handleContinue = () => {
-    if (redirectPath) {
-      navigate(redirectPath, { replace: true });
-    }
   };
 
   return (
@@ -115,48 +93,6 @@ const Login = () => {
       </div>
 
 
-
-      {/* Login Success Popup */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-md px-4 animate-fadeIn">
-          <div className="bg-white/95 backdrop-blur-xl rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.08)] border border-emerald-500/30 max-w-xs w-full p-6 text-center transform animate-scaleIn">
-
-            {/* Clean Bright Success Check Core */}
-            <div className="mx-auto mb-5 relative flex items-center justify-center w-14 h-14">
-              <div className="absolute inset-0 rounded-full bg-emerald-500/10 blur-xl animate-pulse"></div>
-              <div className="relative w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
-                <svg
-                  className="w-6 h-6 text-white stroke-[2.5]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            <h2 className="text-base font-bold tracking-tight text-slate-900">
-              Login Successful
-            </h2>
-
-            <p className="text-slate-500 text-xs mt-1.5 leading-relaxed font-medium">
-              {welcomeName ? `Welcome back, ${welcomeName}.` : "Welcome back."} You are now signed in.
-            </p>
-
-            <button
-              onClick={handleContinue}
-              className="w-full mt-6 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-white py-3 rounded-2xl font-semibold text-xs tracking-wide shadow-md shadow-slate-900/10"
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes fadeIn {

@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { getGateHistory } from "../../services/gateService";
 import { formatLogDate, formatLogTime } from "../../utils/logFormat";
 import Loader from "../../components/common/Loader";
+import CollegeLogo from "../../assets/iiitp_logo.png";
 
 /** Skeleton row shown while history is loading */
 const HistorySkeletonRow = () => (
@@ -76,9 +77,11 @@ const StudentDashboard = () => {
       <header className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md text-white border-b border-slate-800 px-4 py-3 shadow-md">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center font-black text-sm text-white">
-              CP
-            </div>
+            <img
+              src={CollegeLogo}
+              alt="College Logo"
+              className="w-8 h-8 rounded-xl object-contain bg-white shrink-0"
+            />
             <span className="font-bold text-sm text-slate-100 tracking-tight">
               CamPass
             </span>

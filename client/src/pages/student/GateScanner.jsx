@@ -718,9 +718,10 @@ const DailyLimitPopup = ({ action, onClose }) => {
 };
 
 /** GPay-style success popup — overlays the current page (doesn't replace
- *  it), scales/pops in, pulses a ring behind the checkmark, then
- *  auto-redirects to the dashboard a couple seconds later. */
-const SuccessPopup = ({ verification, onDone }) => {
+ *  it), scales/pops in, pulses a ring behind the checkmark, then shows
+ *  a boarding-pass style stub with the student's Name & MIS in large
+ *  type before the rest of the verification summary. */
+const SuccessPopup = ({ verification, user, onDone }) => {
   const [visible, setVisible] = useState(false);
 
   const handleClose = useCallback(() => {
@@ -729,49 +730,28 @@ const SuccessPopup = ({ verification, onDone }) => {
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setVisible(true));
-
-    return () => {
-      cancelAnimationFrame(frame);
-    };
+    return () => cancelAnimationFrame(frame);
   }, []);
+
+  const isBus = verification?.transportMode === "SCHOOL_BUS";
+  const actionLabel = (verification?.action || "PASS").toString().toUpperCase();
+  const verifiedAt = new Date(verification?.time || Date.now());
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6">
       <div
         className={`
-          relative w-full max-w-md bg-white rounded-3xl p-8 text-center shadow-2xl
+          relative w-full max-w-sm bg-white rounded-3xl p-6 text-center shadow-2xl
           transition-all duration-300 ease-out
           ${visible ? "scale-100 opacity-100" : "scale-75 opacity-0"}
         `}
       >
-        {/* Top Right Close 'X' Button */}
-        <button
-          onClick={handleClose}
-          type="button"
-          aria-label="Close popup"
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-full transition-colors active:scale-95"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2.5"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-
-        {/* Success Icon */}
-        <div className="relative w-24 h-24 mx-auto mb-5">
+        {/* Success Icon — compact */}
+        <div className="relative w-16 h-16 mx-auto mb-3">
           <span className="absolute inset-0 rounded-full bg-emerald-100 animate-ping" />
-          <div className="relative w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center">
+          <div className="relative w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center">
             <svg
-              className="w-11 h-11 text-white"
+              className="w-8 h-8 text-white"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -782,35 +762,64 @@ const SuccessPopup = ({ verification, onDone }) => {
           </div>
         </div>
 
-        <span className="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full text-[11px] font-bold uppercase tracking-wider">
+        <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full text-[10px] font-bold uppercase tracking-wider">
           Verification Complete
         </span>
 
-        <h2 className="text-2xl font-extrabold text-slate-900 mt-3 mb-4 tracking-tight">
-          {(verification?.action || "PASS").toString().toUpperCase()} SUCCESSFUL
+        <h2 className="text-lg font-extrabold text-slate-900 mt-2 mb-4 tracking-tight">
+          {actionLabel} SUCCESSFUL
         </h2>
 
-        {/* Transport Mode — highlighted, more prominent than other details */}
+        {/* ===== Pass Stub — Name, MIS, Room in one compact block ===== */}
+        <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 mb-4 text-left">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[9px] uppercase font-bold tracking-[0.15em] text-slate-400">
+              Campus Gate Pass
+            </span>
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white text-slate-600 border border-slate-200">
+              {actionLabel}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="block text-[9px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">
+                Student
+              </span>
+              <p className="text-lg font-black tracking-tight leading-tight text-slate-900 truncate">
+                {user?.name || "Student Name"}
+              </p>
+              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                {user?.hostel || "N/A"} • R-{user?.room || "N/A"}
+              </p>
+            </div>
+
+            <div className="shrink-0 text-right">
+              <span className="block text-[9px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">
+                MIS
+              </span>
+              <p className="text-base font-black font-mono tracking-widest text-slate-900">
+                {user?.mis || "N/A"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Transport Mode — compact pill instead of full-width banner */}
         <div
           className={`
-            flex items-center justify-center gap-2 mx-auto mb-5 px-5 py-3 rounded-2xl border-2
-            ${verification?.transportMode === "SCHOOL_BUS"
-              ? "bg-amber-50 border-amber-300"
-              : "bg-blue-50 border-blue-300"
-            }
+            inline-flex items-center gap-1.5 mx-auto mb-4 px-3.5 py-2 rounded-full border
+            ${isBus ? "bg-amber-50 border-amber-300" : "bg-blue-50 border-blue-300"}
           `}
         >
           <svg
-            className={`w-6 h-6 ${verification?.transportMode === "SCHOOL_BUS"
-                ? "text-amber-600"
-                : "text-blue-600"
-              }`}
+            className={`w-4 h-4 ${isBus ? "text-amber-600" : "text-blue-600"}`}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
           >
-            {verification?.transportMode === "SCHOOL_BUS" ? (
+            {isBus ? (
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -825,56 +834,40 @@ const SuccessPopup = ({ verification, onDone }) => {
             )}
           </svg>
           <span
-            className={`text-base font-extrabold uppercase tracking-wide ${verification?.transportMode === "SCHOOL_BUS"
-                ? "text-amber-700"
-                : "text-blue-700"
+            className={`text-xs font-extrabold uppercase tracking-wide ${isBus ? "text-amber-700" : "text-blue-700"
               }`}
           >
-            {verification?.transportMode === "SCHOOL_BUS"
-              ? "College Bus"
-              : "Self Transport"}
+            {isBus ? "College Bus" : "Self Transport"}
           </span>
         </div>
 
-        {/* Verification Summary Details */}
-        <div className="space-y-3.5 text-sm border-t border-b border-slate-100 py-5 text-left">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-400 font-medium">Gate Location</span>
+        {/* Verification Summary — 2-column grid, same data, less height */}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-xs border-t border-slate-100 pt-4 text-left">
+          <div>
+            <span className="block text-slate-400 font-medium text-[10px]">Gate</span>
+            <span className="font-bold text-slate-800">{verification?.gateName || "Main Gate"}</span>
+          </div>
+          <div>
+            <span className="block text-slate-400 font-medium text-[10px]">Date</span>
             <span className="font-bold text-slate-800">
-              {verification?.gateName || "Main Gate"}
+              {verifiedAt.toLocaleDateString([], { day: "2-digit", month: "short" })}
             </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-400 font-medium">Date</span>
+          <div>
+            <span className="block text-slate-400 font-medium text-[10px]">Time</span>
             <span className="font-bold text-slate-800">
-              {new Date(verification?.time || Date.now()).toLocaleDateString([], {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })}
+              {verifiedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
             </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-400 font-medium">Time Recorded</span>
-            <span className="font-bold text-slate-800">
-              {new Date(verification?.time || Date.now()).toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-                second: "2-digit",
-              })}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-400 font-medium">Selected Reason</span>
-            <span className="font-bold text-slate-800">
-              {verification?.reason || "Not specified"}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-400 font-medium">Verified Distance</span>
+          <div>
+            <span className="block text-slate-400 font-medium text-[10px]">Distance</span>
             <span className="font-bold text-emerald-600 font-mono">
-              {verification?.distance ?? 0} meters
+              {verification?.distance ?? 0}m
             </span>
+          </div>
+          <div className="col-span-2">
+            <span className="block text-slate-400 font-medium text-[10px]">Reason</span>
+            <span className="font-bold text-slate-800">{verification?.reason || "Not specified"}</span>
           </div>
         </div>
 
@@ -882,7 +875,7 @@ const SuccessPopup = ({ verification, onDone }) => {
         <button
           onClick={handleClose}
           type="button"
-          className="w-full mt-6 py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-2xl shadow-md transition-all active:scale-95"
+          className="w-full mt-5 py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-2xl shadow-md transition-all active:scale-95"
         >
           Done
         </button>
@@ -1278,7 +1271,11 @@ const GateScanner = () => {
       </div>
 
       {verification && (
-        <SuccessPopup verification={verification} onDone={handleGoToDashboard} />
+        <SuccessPopup
+          verification={verification}
+          user={user}
+          onDone={handleGoToDashboard}
+        />
       )}
 
       {blockedState?.type === "COOLDOWN" && (

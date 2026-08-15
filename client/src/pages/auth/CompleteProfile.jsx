@@ -129,12 +129,12 @@ const CompleteProfile = () => {
     }
   };
 
-  const handleContinueToGate = () => {
+  const handleContinueToDashboard = () => {
     setShowSuccessModal(false);
     setIsRedirecting(true);
 
     setTimeout(() => {
-      navigate("/gate/main-gate", { replace: true });
+      navigate("/student/dashboard", { replace: true });
     }, 900);
   };
 
@@ -382,10 +382,10 @@ const CompleteProfile = () => {
               </div>
 
               <button
-                onClick={handleContinueToGate}
+                onClick={handleContinueToDashboard}
                 className="w-full mt-6 bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 active:scale-[0.99] transition-all shadow-md shadow-blue-500/20 text-sm tracking-wide"
               >
-                Continue to Gate
+                Continue to Dashboard
               </button>
             </div>
           </div>
@@ -397,7 +397,7 @@ const CompleteProfile = () => {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <p className="text-slate-600 text-sm font-medium tracking-wide">Redirecting to gate scanner...</p>
+            <p className="text-slate-600 text-sm font-medium tracking-wide">Redirecting to your dashboard...</p>
           </div>
         )}
       </div>
