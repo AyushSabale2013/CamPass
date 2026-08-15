@@ -40,6 +40,36 @@ const HostelersOutsideView = ({ logs, fetching, setView }) => {
     });
   }, [logs, searchTerm, todayString]);
 
+  // Count of distinct hostelers currently outside today — deduped by
+  // student identity (id, then MIS, then name as a last resort) since a
+  // single student can have more than one log entry today, and we only
+  // want to count each student once, not once per log row.
+  const outsideCount = useMemo(() => {
+    const seen = new Set();
+    logs.forEach((log) => {
+      if (!log.createdAt) return;
+      const logDateObj = new Date(log.createdAt);
+      const year = logDateObj.getFullYear();
+      const month = String(logDateObj.getMonth() + 1).padStart(2, "0");
+      const day = String(logDateObj.getDate()).padStart(2, "0");
+      if (`${year}-${month}-${day}` !== todayString) return;
+
+      const studentKey =
+        log.studentId ||
+        log.student?._id ||
+        log.student?.id ||
+        log.studentMis ||
+        log.student?.mis ||
+        log.mis ||
+        log.studentName ||
+        log.student?.name ||
+        log.name;
+
+      if (studentKey) seen.add(studentKey);
+    });
+    return seen.size;
+  }, [logs, todayString]);
+
   return (
     <div className="space-y-3">
       {/* Top Header Card */}
@@ -56,6 +86,23 @@ const HostelersOutsideView = ({ logs, fetching, setView }) => {
         >
           &larr; Back
         </button>
+      </div>
+
+      {/* Hostelers Outside — Total Count */}
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
+          <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6 0a4 4 0 10-4-4" />
+          </svg>
+        </div>
+        <div className="min-w-0">
+          <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+            Hostelers Outside Right Now
+          </span>
+          <span className="text-xl font-black text-slate-900 leading-tight">
+            {outsideCount}
+          </span>
+        </div>
       </div>
 
       {/* Modern Filter Section */}

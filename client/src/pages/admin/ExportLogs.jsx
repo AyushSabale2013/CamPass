@@ -36,6 +36,7 @@ const ExportLogs = () => {
     }
   };
 
+  // Trimmed to only the fields needed: Name, Email, MIS, Phone, Hostel, Room.
   const handleDownloadStudentsCSV = () => {
     try {
       if (students.length === 0) {
@@ -43,17 +44,14 @@ const ExportLogs = () => {
         return;
       }
 
-      const headers = ["Name", "Email", "MIS", "Phone", "User Type", "Hostel", "Room", "Role", "Created At"];
+      const headers = ["Name", "Email", "MIS", "Phone", "Hostel", "Room"];
       const rows = students.map(s => [
         `"${s.name || ""}"`,
         `"${s.email || ""}"`,
         `"${s.mis || ""}"`,
         `"${s.phone || ""}"`,
-        `"${s.userType || ""}"`,
         `"${s.hostel || ""}"`,
-        `"${s.room || ""}"`,
-        `"${s.role || ""}"`,
-        `"${s.createdAt ? new Date(s.createdAt).toISOString() : ""}"`
+        `"${s.room || ""}"`
       ]);
 
       const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
@@ -226,7 +224,12 @@ const ExportLogs = () => {
                       <span className="font-semibold text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-700">{student.mis || "N/A"}</span>
                     </div>
                     <p className="text-slate-500 truncate text-[11px]">
-                      {student.email} | {student.userType} {student.hostel !== 'N/A' && `(${student.hostel} - ${student.room})`}
+                      {student.email} | {student.phone || "N/A"}
+                    </p>
+                    <p className="text-slate-400 text-[11px]">
+                      {student.hostel && student.hostel !== "N/A"
+                        ? `${student.hostel} • Room ${student.room || "N/A"}`
+                        : "No hostel assigned"}
                     </p>
                   </div>
                 ))}

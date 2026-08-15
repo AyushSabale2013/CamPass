@@ -1,6 +1,23 @@
 import { useState, useMemo } from "react";
 import LogCard from "../../components/security/LogCard";
 
+// Shared field extraction — avoids re-deriving name/mis/email with the
+// same fallback chain in multiple places (filter + count, if ever needed).
+const getSearchableFields = (log) => ({
+  name: (log.studentName || log.student?.name || log.name || "").toLowerCase(),
+  mis: (log.studentMis || log.student?.mis || log.mis || "").toLowerCase(),
+  email: (log.studentEmail || log.student?.email || log.email || "").toLowerCase(),
+});
+
+// Extracts "HH:MM" from a log's createdAt for time-range comparisons.
+const getLogTimeString = (log) => {
+  if (!log.createdAt) return null;
+  const d = new Date(log.createdAt);
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+};
+
 const BusEntriesView = ({
   logs,
   fetching,
@@ -20,35 +37,32 @@ const BusEntriesView = ({
   // fetch from /bus-logs), so it isn't re-filtered here — only search
   // and time-of-day, both local state, same pattern as TodaysLogsView.
   const filteredLogs = useMemo(() => {
+    const query = searchTerm.toLowerCase().trim();
+
     return logs.filter((log) => {
-      const name = (log.studentName || log.student?.name || log.name || "").toLowerCase();
-      const mis = (log.studentMis || log.student?.mis || log.mis || "").toLowerCase();
-      const email = (log.studentEmail || log.student?.email || log.email || "").toLowerCase();
-
-      const query = searchTerm.toLowerCase().trim();
-
-      const matchesSearch =
-        !query || name.includes(query) || mis.includes(query) || email.includes(query);
-
-      if (!matchesSearch) return false;
-
-      if (!log.createdAt) return true;
-
-      const logDateObj = new Date(log.createdAt);
-      const logHours = String(logDateObj.getHours()).padStart(2, "0");
-      const logMinutes = String(logDateObj.getMinutes()).padStart(2, "0");
-      const logTimeString = `${logHours}:${logMinutes}`;
-
-      if (startTime && logTimeString < startTime) {
-        return false;
+      if (query) {
+        const { name, mis, email } = getSearchableFields(log);
+        const matchesSearch = name.includes(query) || mis.includes(query) || email.includes(query);
+        if (!matchesSearch) return false;
       }
-      if (endTime && logTimeString > endTime) {
-        return false;
-      }
+
+      const logTimeString = getLogTimeString(log);
+      if (logTimeString === null) return true;
+
+      if (startTime && logTimeString < startTime) return false;
+      if (endTime && logTimeString > endTime) return false;
 
       return true;
     });
   }, [logs, searchTerm, startTime, endTime]);
+
+  // Formatted display of the currently selected date, for the count card.
+  const formattedBusDate = useMemo(() => {
+    if (!busDate) return "";
+    const d = new Date(`${busDate}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return busDate;
+    return d.toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" });
+  }, [busDate]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -97,6 +111,23 @@ const BusEntriesView = ({
         >
           &larr; Back
         </button>
+      </div>
+
+      {/* Bus Entries — Total Count for Selected Date */}
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center shrink-0">
+          <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 6v6m8-6v6M3 12h18M4 12v6a1 1 0 001 1h1a1 1 0 001-1v-1h10v1a1 1 0 001 1h1a1 1 0 001-1v-6M5 12V7a2 2 0 012-2h10a2 2 0 012 2v5" />
+          </svg>
+        </div>
+        <div className="min-w-0">
+          <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+            Bus Entries {formattedBusDate ? `— ${formattedBusDate}` : ""}
+          </span>
+          <span className="text-xl font-black text-slate-900 leading-tight">
+            {logs.length}
+          </span>
+        </div>
       </div>
 
       {/* Modern Filter Section */}

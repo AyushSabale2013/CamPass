@@ -8,6 +8,19 @@ import LogCard from "../../components/security/LogCard";
 const getGateName = (log) =>
   log.gateName || log.gate?.name || log.gate?.gateName || log.gate || "";
 
+// The counting "day" runs 1:00 AM -> next 1:00 AM, not midnight -> midnight.
+// Given `now`, returns the Date for the most recent 1 AM boundary: if it's
+// currently past 1 AM, that's today's 1 AM; if it's before 1 AM, the window
+// actually started yesterday at 1 AM.
+const getCurrentWindowStart = (now) => {
+  const windowStart = new Date(now);
+  windowStart.setHours(1, 0, 0, 0);
+  if (now < windowStart) {
+    windowStart.setDate(windowStart.getDate() - 1);
+  }
+  return windowStart;
+};
+
 const TodaysLogsView = ({ logs, fetching, total, setView }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "IN" | "OUT"
@@ -28,6 +41,28 @@ const TodaysLogsView = ({ logs, fetching, total, setView }) => {
     return Array.from(names).sort();
   }, [logs]);
 
+  // Total entries/exits for the current 1 AM-anchored window — computed
+  // from the full `logs` list, not `filteredLogs`, since this should
+  // always reflect the window's totals regardless of whatever the user
+  // is currently filtering by. Logs without a `createdAt` are excluded
+  // since we can't place them in the window reliably.
+  const todaysCounts = useMemo(() => {
+    const windowStart = getCurrentWindowStart(new Date());
+    let entries = 0;
+    let exits = 0;
+
+    logs.forEach((log) => {
+      if (!log.createdAt) return;
+      const logDate = new Date(log.createdAt);
+      if (logDate < windowStart) return;
+
+      if (log.status === "IN") entries += 1;
+      else if (log.status === "OUT") exits += 1;
+    });
+
+    return { entries, exits };
+  }, [logs]);
+
   // Filter logs based on search term, status pill tab, gate, and time range
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
@@ -36,7 +71,7 @@ const TodaysLogsView = ({ logs, fetching, total, setView }) => {
       const email = (log.studentEmail || log.student?.email || log.email || "").toLowerCase();
 
       const query = searchTerm.toLowerCase().trim();
-      
+
       // Match Search Term across name, mis, or email
       const matchesSearch =
         !query ||
@@ -122,6 +157,41 @@ const TodaysLogsView = ({ logs, fetching, total, setView }) => {
         >
           &larr; Back
         </button>
+      </div>
+
+      {/* Today's Totals — Entries / Exits (resets at 1 AM daily) */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0">
+            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 8v1a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v1" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+              Entries Today
+            </span>
+            <span className="text-xl font-black text-slate-900 leading-tight">
+              {todaysCounts.entries}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
+            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 8l4 4m0 0l-4 4m4-4H3m10-8v-1a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h6a2 2 0 002-2v-1" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+              Exits Today
+            </span>
+            <span className="text-xl font-black text-slate-900 leading-tight">
+              {todaysCounts.exits}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Modern Filter Section */}
