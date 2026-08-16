@@ -31,7 +31,7 @@ const StudentDashboard = () => {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
-  
+
   // State for the Important Notice Modal
   const [showNotice, setShowNotice] = useState(false);
 
@@ -211,9 +211,9 @@ const StudentDashboard = () => {
             </p>
 
             <div className="grid grid-cols-2 gap-3">
-              {/* Main Gate */}
+              {/* Main Gate — links straight to the scanner, bypassing GateJunction */}
               <button
-                onClick={() => navigate("/gate/main-gate")}
+                onClick={() => navigate("/student/gate-scanner/main-gate")}
                 className="group p-4 rounded-2xl border border-slate-200 bg-white hover:border-blue-500 hover:bg-blue-50/50 transition-all active:scale-95 text-left shadow-xs"
               >
                 <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-3 group-hover:bg-blue-600 transition-colors">
@@ -239,9 +239,9 @@ const StudentDashboard = () => {
                 <p className="text-xs text-slate-400 mt-1">College Main Entry</p>
               </button>
 
-              {/* Godavari Gate */}
+              {/* Godavari Gate — links straight to the scanner, bypassing GateJunction */}
               <button
-                onClick={() => navigate("/gate/godavari-gate")}
+                onClick={() => navigate("/student/gate-scanner/godavari-gate")}
                 className="group p-4 rounded-2xl border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50/50 transition-all active:scale-95 text-left shadow-xs"
               >
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-3 group-hover:bg-emerald-600 transition-colors">
@@ -380,7 +380,7 @@ const StudentDashboard = () => {
               </div>
               <h3 className="text-lg font-black text-white">Important Notice</h3>
             </div>
-            
+
             {/* Modal Body */}
             <div className="p-6 space-y-4 text-sm text-slate-600 font-medium">
               <p>
@@ -389,7 +389,7 @@ const StudentDashboard = () => {
               <p>
                 Please use them carefully and <strong className="text-slate-900">only in necessary cases</strong>. Do not use your passes unnecessarily.
               </p>
-              
+
               {/* Strict Warning Box */}
               <div className="p-3.5 bg-rose-50 rounded-xl border border-rose-100 text-rose-800 text-[13px] leading-snug">
                 <strong className="flex items-center gap-1.5 mb-1 text-rose-900">
@@ -403,7 +403,7 @@ const StudentDashboard = () => {
                 If you are found making false entries or misusing the gate pass system, you will be liable for strict disciplinary actions from the college administration.
               </div>
             </div>
-            
+
             {/* Modal Footer */}
             <div className="p-4 bg-slate-50 border-t border-slate-100">
               <button

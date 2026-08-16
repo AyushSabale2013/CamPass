@@ -1,4 +1,4 @@
-
+// src/pages/gate/GateJunction.jsx
 import { useEffect, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -39,8 +39,11 @@ const GateJunction = () => {
     const role = user?.role?.toLowerCase() || "";
 
     if (role === "student") {
-      // FIX: Matches your route /student/gate-scanner/:slug safely
-      navigate(`/student/gate-scanner/${slug || "main-gate"}`, { replace: true });
+      // Students never enter the Gate Scanner directly from a QR scan —
+      // they always land on the dashboard first and go to the scanner
+      // from there. currentGateSlug is still saved above in case the
+      // dashboard wants to show "you scanned <gate>" or offer a shortcut.
+      navigate("/student/dashboard", { replace: true });
     } else if (role === "security" || role === "security guard") {
       navigate("/security/dashboard", { replace: true });
     } else if (role === "admin") {
@@ -57,4 +60,3 @@ const GateJunction = () => {
 };
 
 export default GateJunction;
-
