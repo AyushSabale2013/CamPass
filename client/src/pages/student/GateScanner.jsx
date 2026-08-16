@@ -131,6 +131,32 @@ const Header = ({ gateName, now, onBack }) => (
   </header>
 );
 
+/** Gate Name Banner — medium-sized heading shown at the top of the
+ *  content area (below the header) so the gate is clearly identified
+ *  before the user scrolls into the status/GPS/reason cards. */
+const GateNameBanner = ({ gateName }) => (
+  <div className="flex items-center gap-3 px-1">
+    <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-sm">
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"
+        />
+      </svg>
+    </div>
+    <div className="min-w-0">
+      <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+        You're Scanning
+      </span>
+      <h2 className="text-lg font-extrabold text-slate-900 tracking-tight truncate">
+        {gateName || "CamPass Gate"}
+      </h2>
+    </div>
+  </div>
+);
+
 /** Student Profile Card */
 const StudentProfileCard = ({ user }) => (
   <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 relative overflow-hidden">
@@ -1199,6 +1225,8 @@ const GateScanner = () => {
       <Header gateName={gate.gateName} now={now} onBack={handleGoToDashboard} />
 
       <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-4 pb-36">
+        <GateNameBanner gateName={gate.gateName} />
+
         <CampusStatusCard isInsideCampus={isInside} />
 
         <StudentProfileCard user={user} />

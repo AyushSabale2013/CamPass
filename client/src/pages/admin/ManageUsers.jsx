@@ -21,6 +21,9 @@ const ManageUsers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
 
+  // NEW: which user's detail panel is open (null = none)
+  const [selectedUser, setSelectedUser] = useState(null);
+
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: "",
@@ -155,6 +158,8 @@ const ManageUsers = () => {
         try {
           await deleteUserProfile(id);
           loadUsers();
+          // NEW: close detail panel if the deleted user was open
+          setSelectedUser(prev => (prev?._id === id ? null : prev));
           setConfirmModal(prev => ({ ...prev, isOpen: false }));
         } catch (err) {
           setConfirmModal({
@@ -177,6 +182,27 @@ const ManageUsers = () => {
     const matchesRole = roleFilter === "all" || u.role === roleFilter;
     return matchesSearch && matchesRole;
   });
+
+  // NEW: small helpers for the detail panel
+  const formatDateTime = (val) => {
+    if (!val) return "—";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const DetailRow = ({ label, value }) => (
+    <div className="flex items-center justify-between py-2 border-b border-slate-100 last:border-b-0">
+      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
+      <span className="text-xs font-semibold text-slate-800 text-right max-w-[60%] truncate">{value ?? "—"}</span>
+    </div>
+  );
 
   return (
     <PageContainer>
@@ -244,57 +270,140 @@ const ManageUsers = () => {
               <p className="text-[11px] text-slate-400">Try adjusting your search criteria or role filters.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            // CHANGED: rows now show only name + MIS, and open the detail panel on click
+            <div className="space-y-2">
               {filteredUsers.map((u) => (
-                <div key={u._id} className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all flex items-center justify-between group">
+                <button
+                  key={u._id}
+                  onClick={() => setSelectedUser(u)}
+                  className="w-full bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex items-center justify-between text-left active:scale-[0.99]"
+                >
                   <div className="min-w-0 pr-3 flex-1">
                     <h4 className="font-extrabold text-slate-900 text-xs truncate">{u.name}</h4>
-                    <p className="text-[11px] text-slate-400 truncate font-medium">{u.email}</p>
-                    <div className="flex gap-1.5 mt-2 flex-wrap items-center">
-                      <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${
-                        u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 
-                        u.role === 'security' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
-                      }`}>
-                        {u.role}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-lg text-[9px] font-black bg-slate-100 text-slate-700">
-                        {u.mis || "N/A"}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-lg text-[9px] font-black bg-emerald-50 text-emerald-700 uppercase tracking-wider">
-                        {u.userType}
-                      </span>
-                      {u.userType === 'hosteller' && u.hostel && u.hostel !== 'N/A' && (
-                        <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold bg-slate-100 text-slate-500">
-                          {u.hostel} • {u.room}
-                        </span>
-                      )}
-                    </div>
+                    <p className="text-[11px] text-slate-400 truncate font-medium">MIS: {u.mis || "N/A"}</p>
                   </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button 
-                      onClick={() => openModal(u)}
-                      className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-xl transition active:scale-95"
-                      title="Edit User"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(u._id, u.name)}
-                      className="text-rose-600 bg-rose-50 hover:bg-rose-100 p-2 rounded-xl transition active:scale-95"
-                      title="Delete User"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>
-                  </div>
-                </div>
+                  <svg className="w-4 h-4 text-slate-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
               ))}
             </div>
           )}
 
         </main>
 
-        {/* Modal */}
+        {/* NEW: User Detail Panel (opens on row click, shows almost every field) */}
+        {selectedUser && (
+          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto border border-slate-100">
+              
+              {/* Header with avatar */}
+              <div className="flex items-start justify-between mb-4 gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {selectedUser.profilePicture ? (
+                    <img
+                      src={selectedUser.profilePicture}
+                      alt={selectedUser.name}
+                      className="w-11 h-11 rounded-2xl object-cover border border-slate-200 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-11 h-11 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-sm shrink-0">
+                      {selectedUser.name?.charAt(0)?.toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-black text-slate-900 tracking-tight truncate">{selectedUser.name}</h3>
+                    <p className="text-[11px] text-slate-400 truncate font-medium">{selectedUser.email}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedUser(null)}
+                  className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 text-xs font-bold shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Role badge + Campus status */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${
+                  selectedUser.role === 'admin' ? 'bg-purple-100 text-purple-700' : 
+                  selectedUser.role === 'security' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
+                }`}>
+                  {selectedUser.role}
+                </span>
+              </div>
+
+              {/* Campus status — prominent */}
+              <div className={`flex items-center gap-3 rounded-2xl px-4 py-3.5 mb-4 ${
+                selectedUser.isInsideCampus ? 'bg-green-50 border border-green-200' : 'bg-rose-50 border border-rose-200'
+              }`}>
+                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                  selectedUser.isInsideCampus ? 'bg-green-500' : 'bg-rose-500'
+                }`} />
+                <div>
+                  <p className={`text-sm font-black tracking-tight ${
+                    selectedUser.isInsideCampus ? 'text-green-800' : 'text-rose-800'
+                  }`}>
+                    {selectedUser.isInsideCampus ? "Inside Campus" : "Outside Campus"}
+                  </p>
+                  <p className={`text-[10px] font-medium ${
+                    selectedUser.isInsideCampus ? 'text-green-600' : 'text-rose-600'
+                  }`}>
+                    Current location status
+                  </p>
+                </div>
+              </div>
+
+              {/* Details sections */}
+              <div className="space-y-4">
+                <div className="bg-slate-50 rounded-2xl px-4 py-1">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pt-2.5 pb-1">Identity</p>
+                  <DetailRow label="MIS / ID" value={selectedUser.mis} />
+                  <DetailRow label="Phone" value={selectedUser.phone} />
+                  <DetailRow label="Google ID" value={selectedUser.googleId} />
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl px-4 py-1">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pt-2.5 pb-1">Residence</p>
+                  <DetailRow label="User Type" value={selectedUser.userType} />
+                  <DetailRow label="Hostel" value={selectedUser.hostel} />
+                  <DetailRow label="Room" value={selectedUser.room} />
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl px-4 py-1">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pt-2.5 pb-1">Record</p>
+                  <DetailRow label="Created At" value={formatDateTime(selectedUser.createdAt)} />
+                  <DetailRow label="Updated At" value={formatDateTime(selectedUser.updatedAt)} />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-5">
+                <button 
+                  onClick={() => {
+                    setSelectedUser(null);
+                    handleDelete(selectedUser._id, selectedUser.name);
+                  }}
+                  className="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-600 py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  Delete
+                </button>
+                <button 
+                  onClick={() => {
+                    openModal(selectedUser);
+                    setSelectedUser(null);
+                  }}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-2xl text-xs font-extrabold shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                  Edit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add/Edit Modal */}
         {showModal && (
           <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
             <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto border border-slate-100">

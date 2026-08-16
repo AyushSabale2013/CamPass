@@ -1,278 +1,283 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageContainer from "../../components/layout/PageContainer";
-import { useAuth } from "../../context/AuthContext";
 import { fetchAllUsers, exportSystemLogs } from "../../services/adminService";
+
+// ── Shared CSV download utility (DRY, proper quote-escaping) ───────────────
+const downloadCSV = (headers, rows, filename) => {
+  const escape = (val) => {
+    const str = val == null ? "" : String(val);
+    return `"${str.replace(/"/g, '""')}"`;         // escape " → ""
+  };
+  const csv = [headers.join(","), ...rows.map(r => r.map(escape).join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
+const PREVIEW_LIMIT = 50;
 
 const ExportLogs = () => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
 
-  const [students, setStudents] = useState([]);
+  const [students, setStudents]   = useState([]);
   const [entryLogs, setEntryLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("students"); // "students" or "entries"
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [activeTab, setActiveTab] = useState("students");
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [usersData, logsData] = await Promise.all([
         fetchAllUsers(),
-        exportSystemLogs()
+        exportSystemLogs(),
       ]);
-      
-      const studentList = (usersData.users || []).filter(u => u.role === "student");
-      setStudents(studentList);
+      setStudents((usersData.users || []).filter(u => u.role === "student"));
       setEntryLogs(logsData.logs || []);
-    } catch (error) {
-      console.error("Error loading export data:", error);
+    } catch (err) {
+      console.error("Error loading export data:", err);
+      setError("Failed to load data. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Trimmed to only the fields needed: Name, Email, MIS, Phone, Hostel, Room.
+  // ── Download handlers ───────────────────────────────────────────────────
   const handleDownloadStudentsCSV = () => {
-    try {
-      if (students.length === 0) {
-        alert("No student data available to export.");
-        return;
-      }
-
-      const headers = ["Name", "Email", "MIS", "Phone", "Hostel", "Room"];
-      const rows = students.map(s => [
-        `"${s.name || ""}"`,
-        `"${s.email || ""}"`,
-        `"${s.mis || ""}"`,
-        `"${s.phone || ""}"`,
-        `"${s.hostel || ""}"`,
-        `"${s.room || ""}"`
-      ]);
-
-      const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", url);
-      downloadAnchor.setAttribute("download", `students_directory_${Date.now()}.csv`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      alert("Failed to download students CSV file.");
-    }
+    if (!students.length) return;
+    downloadCSV(
+      ["Name", "Email", "MIS", "Phone", "User Type", "Hostel", "Room"],
+      students.map(s => [s.name, s.email, s.mis, s.phone, s.userType, s.hostel, s.room]),
+      `students_directory_${Date.now()}.csv`
+    );
   };
 
   const handleDownloadEntriesCSV = () => {
-    try {
-      if (entryLogs.length === 0) {
-        alert("No entry log data available to export.");
-        return;
-      }
-
-      const headers = [
-        "Log ID", 
-        "User ID", 
-        "Gate ID", 
-        "Name", 
-        "Email", 
-        "MIS", 
-        "Phone", 
-        "Hostel", 
-        "Room", 
-        "Gate Name", 
-        "Status", 
-        "Reason", 
-        "Additional Note", 
-        "Latitude", 
-        "Longitude", 
-        "Distance", 
-        "Created At", 
-        "Updated At"
-      ];
-
-      const rows = entryLogs.map(l => [
-        `"${l._id || ""}"`,
-        `"${l.userId || ""}"`,
-        `"${l.gateId || ""}"`,
-        `"${l.name || ""}"`,
-        `"${l.email || ""}"`,
-        `"${l.mis || ""}"`,
-        `"${l.phone || ""}"`,
-        `"${l.hostel || ""}"`,
-        `"${l.room || ""}"`,
-        `"${l.gateName || ""}"`,
-        `"${l.status || ""}"`,
-        `"${l.reason || ""}"`,
-        `"${l.additionalNote || ""}"`,
-        `"${l.latitude ?? ""}"`,
-        `"${l.longitude ?? ""}"`,
-        `"${l.distance ?? ""}"`,
-        `"${l.createdAt ? new Date(l.createdAt).toISOString() : ""}"`,
-        `"${l.updatedAt ? new Date(l.updatedAt).toISOString() : ""}"`
-      ]);
-
-      const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", url);
-      downloadAnchor.setAttribute("download", `entry_logs_${Date.now()}.csv`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      alert("Failed to download entry logs CSV file.");
-    }
+    if (!entryLogs.length) return;
+    downloadCSV(
+      [
+        "Log ID", "User ID", "Gate ID", "Name", "Email", "MIS", "Phone",
+        "Hostel", "Room", "Gate Name", "Status", "Reason", "Additional Note",
+        "Latitude", "Longitude", "Distance", "Created At", "Updated At",
+      ],
+      entryLogs.map(l => [
+        l._id, l.userId, l.gateId, l.name, l.email, l.mis, l.phone,
+        l.hostel, l.room, l.gateName, l.status, l.reason, l.additionalNote,
+        l.latitude, l.longitude, l.distance,
+        l.createdAt ? new Date(l.createdAt).toISOString() : "",
+        l.updatedAt ? new Date(l.updatedAt).toISOString() : "",
+      ]),
+      `entry_logs_${Date.now()}.csv`
+    );
   };
 
-  const filteredStudents = students.filter((s) => 
-    s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.mis?.toLowerCase().includes(searchTerm.toLowerCase())
+  // ── Filtered lists (targeted fields only — no JSON.stringify shotgun) ───
+  const term = searchTerm.toLowerCase();
+
+  const filteredStudents = students.filter(s =>
+    s.name?.toLowerCase().includes(term) ||
+    s.email?.toLowerCase().includes(term) ||
+    s.mis?.toLowerCase().includes(term) ||
+    s.phone?.toLowerCase().includes(term)
   );
 
-  const filteredEntries = entryLogs.filter((l) => 
-    JSON.stringify(l).toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredEntries = entryLogs.filter(l =>
+    l.name?.toLowerCase().includes(term) ||
+    l.mis?.toLowerCase().includes(term) ||
+    l.email?.toLowerCase().includes(term) ||
+    l.gateName?.toLowerCase().includes(term) ||
+    l.status?.toLowerCase().includes(term) ||
+    l.reason?.toLowerCase().includes(term) ||
+    l.hostel?.toLowerCase().includes(term)
   );
+
+  const activeList  = activeTab === "students" ? filteredStudents : filteredEntries;
+  const totalCount  = activeTab === "students" ? students.length  : entryLogs.length;
+  const canDownload = !loading && (activeTab === "students" ? students.length > 0 : entryLogs.length > 0);
 
   return (
     <PageContainer>
-      <div className="flex flex-col min-h-screen bg-slate-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
-        
-        {/* Top Header */}
-        <header className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between sticky top-0 z-20 shadow-md">
+      <div className="flex flex-col min-h-screen bg-slate-50 max-w-md mx-auto shadow-2xl overflow-x-hidden border-x border-slate-200">
+
+        {/* Header */}
+        <header className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white px-5 py-4 flex items-center justify-between sticky top-0 z-20 shadow-lg">
           <div>
-            <h1 className="text-base font-bold tracking-wide">Data Exports</h1>
-            <p className="text-[11px] text-slate-400">Students: {students.length} | Logs: {entryLogs.length}</p>
+            <h1 className="text-base font-extrabold tracking-tight">Data Exports</h1>
+            <p className="text-[11px] text-indigo-200 font-medium">
+              Students: {students.length} · Logs: {entryLogs.length}
+            </p>
           </div>
-          <button 
+          <button
             onClick={() => navigate("/admin/dashboard")}
-            className="bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold transition"
+            className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/10 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm"
           >
             Dashboard
           </button>
         </header>
 
-        {/* Content Area */}
         <main className="p-4 space-y-4 pb-12 flex-1">
-          
-          {/* Tabs Selector */}
-          <div className="grid grid-cols-2 gap-1 bg-slate-200 p-1 rounded-xl">
-            <button
-              onClick={() => { setActiveTab("students"); setSearchTerm(""); }}
-              className={`py-2 rounded-lg text-xs font-bold transition ${activeTab === "students" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
-            >
-              Students Directory
-            </button>
-            <button
-              onClick={() => { setActiveTab("entries"); setSearchTerm(""); }}
-              className={`py-2 rounded-lg text-xs font-bold transition ${activeTab === "entries" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
-            >
-              Entry Logs
-            </button>
+
+          {/* Tabs */}
+          <div className="grid grid-cols-2 gap-1 bg-slate-200/80 p-1 rounded-2xl">
+            {["students", "entries"].map(tab => (
+              <button
+                key={tab}
+                onClick={() => { setActiveTab(tab); setSearchTerm(""); }}
+                className={`py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                  activeTab === tab
+                    ? "bg-white text-indigo-950 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {tab === "students" ? "Students Directory" : "Entry Logs"}
+              </button>
+            ))}
           </div>
 
-          {/* Action Bar */}
+          {/* Download + Search */}
           <div className="space-y-2">
-            {activeTab === "students" ? (
-              <button 
-                onClick={handleDownloadStudentsCSV}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Download Students CSV
-              </button>
-            ) : (
-              <button 
-                onClick={handleDownloadEntriesCSV}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                Download Entry Logs CSV
-              </button>
-            )}
+            <button
+              onClick={activeTab === "students" ? handleDownloadStudentsCSV : handleDownloadEntriesCSV}
+              disabled={!canDownload}
+              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white py-3 rounded-2xl text-xs font-black shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-2 active:scale-[0.99]"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Download {activeTab === "students" ? "Students" : "Entry Logs"} CSV
+            </button>
 
-            <input 
-              type="text" 
-              placeholder={activeTab === "students" ? "Search students by name, email, MIS..." : "Search entry logs by name, MIS, gate..."}
+            <input
+              type="text"
+              placeholder={
+                activeTab === "students"
+                  ? "Search by name, email, MIS, phone…"
+                  : "Search by name, MIS, gate, status, reason…"
+              }
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-blue-600 shadow-sm"
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-2xl px-3.5 py-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-sm transition"
             />
           </div>
 
-          {/* Feed Preview List */}
+          {/* Filtered count hint */}
+          {!loading && !error && searchTerm && (
+            <p className="text-[11px] text-slate-400 font-medium -mt-1">
+              {activeList.length === totalCount
+                ? `${totalCount} record${totalCount !== 1 ? "s" : ""}`
+                : `${activeList.length} of ${totalCount} records`}
+            </p>
+          )}
+
+          {/* Content */}
           {loading ? (
-            <p className="text-xs text-slate-400 text-center py-10 animate-pulse">Loading data...</p>
+            <div className="flex flex-col items-center justify-center py-16 space-y-2">
+              <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs text-slate-400 font-medium">Loading data…</p>
+            </div>
+
+          ) : error ? (
+            <div className="text-center py-10 bg-white rounded-3xl border border-rose-200 p-6 space-y-3">
+              <p className="text-xs font-bold text-rose-700">{error}</p>
+              <button
+                onClick={loadData}
+                className="text-xs font-bold text-indigo-600 underline underline-offset-2"
+              >
+                Retry
+              </button>
+            </div>
+
+          ) : activeList.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-6 space-y-1">
+              <p className="text-xs font-bold text-slate-700">
+                {searchTerm
+                  ? "No results for that search"
+                  : activeTab === "students" ? "No students found" : "No entry logs found"}
+              </p>
+              {searchTerm && (
+                <p className="text-[11px] text-slate-400">Try a different term.</p>
+              )}
+            </div>
+
           ) : activeTab === "students" ? (
-            filteredStudents.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-10">No students found.</p>
-            ) : (
-              <div className="space-y-2.5">
-                {filteredStudents.slice(0, 50).map((student, index) => (
-                  <div key={student._id || index} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 truncate text-xs">{student.name}</span>
-                      <span className="font-semibold text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-700">{student.mis || "N/A"}</span>
-                    </div>
-                    <p className="text-slate-500 truncate text-[11px]">
-                      {student.email} | {student.phone || "N/A"}
-                    </p>
-                    <p className="text-slate-400 text-[11px]">
-                      {student.hostel && student.hostel !== "N/A"
-                        ? `${student.hostel} • Room ${student.room || "N/A"}`
-                        : "No hostel assigned"}
-                    </p>
+            <div className="space-y-2">
+              {filteredStudents.slice(0, PREVIEW_LIMIT).map((s, i) => (
+                <div key={s._id || i} className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-extrabold text-slate-900 text-xs truncate">{s.name}</span>
+                    <span className="shrink-0 text-[10px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg">
+                      {s.mis || "N/A"}
+                    </span>
                   </div>
-                ))}
-                {filteredStudents.length > 50 && (
-                  <p className="text-[11px] text-center text-slate-400 pt-2">Showing first 50 records. Download CSV for full archive.</p>
-                )}
-              </div>
-            )
+                  <p className="text-slate-500 truncate text-[11px]">{s.email} · {s.phone || "N/A"}</p>
+                  <p className="text-slate-400 text-[11px]">
+                    {s.hostel && s.hostel !== "N/A"
+                      ? `${s.hostel} · Room ${s.room || "N/A"}`
+                      : "Day Scholar"}
+                  </p>
+                </div>
+              ))}
+              {filteredStudents.length > PREVIEW_LIMIT && (
+                <p className="text-[11px] text-center text-slate-400 pt-1">
+                  Showing {PREVIEW_LIMIT} of {filteredStudents.length}. Download CSV for all records.
+                </p>
+              )}
+            </div>
+
           ) : (
-            filteredEntries.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-10">No entry logs found.</p>
-            ) : (
-              <div className="space-y-2.5">
-                {filteredEntries.slice(0, 50).map((log, index) => (
-                  <div key={log._id || index} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-xs">{log.name || "Unknown"}</span>
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${log.status === 'IN' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                          {log.status || "EVENT"}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400">
-                        {log.createdAt ? new Date(log.createdAt).toLocaleString() : "Recent"}
+            <div className="space-y-2">
+              {filteredEntries.slice(0, PREVIEW_LIMIT).map((l, i) => (
+                <div key={l._id || i} className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-extrabold text-slate-900 text-xs truncate">{l.name || "Unknown"}</span>
+                      <span className={`shrink-0 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${
+                        l.status === "IN" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                      }`}>
+                        {l.status || "—"}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-600">
-                      Gate: <span className="font-semibold text-slate-800">{log.gateName || "N/A"}</span> | MIS: <span className="font-semibold text-slate-800">{log.mis || "N/A"}</span>
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate">
-                      Reason: {log.reason || "N/A"} {log.hostel ? `| Hostel: ${log.hostel} (${log.room})` : ""}
-                    </p>
+                    <span className="shrink-0 text-[10px] text-slate-400 font-medium">
+                      {l.createdAt
+                        ? new Date(l.createdAt).toLocaleString("en-IN", {
+                            day: "2-digit", month: "short",
+                            hour: "2-digit", minute: "2-digit",
+                          })
+                        : "—"}
+                    </span>
                   </div>
-                ))}
-                {filteredEntries.length > 50 && (
-                  <p className="text-[11px] text-center text-slate-400 pt-2">Showing first 50 records. Download CSV for full archive.</p>
-                )}
-              </div>
-            )
+                  <p className="text-[11px] text-slate-600">
+                    Gate: <span className="font-semibold text-slate-800">{l.gateName || "N/A"}</span>
+                    {" · "}MIS: <span className="font-semibold text-slate-800">{l.mis || "N/A"}</span>
+                  </p>
+                  {(l.reason || (l.hostel && l.hostel !== "N/A")) && (
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {l.reason || "No reason"}
+                      {l.hostel && l.hostel !== "N/A" ? ` · ${l.hostel} (${l.room || "N/A"})` : ""}
+                    </p>
+                  )}
+                </div>
+              ))}
+              {filteredEntries.length > PREVIEW_LIMIT && (
+                <p className="text-[11px] text-center text-slate-400 pt-1">
+                  Showing {PREVIEW_LIMIT} of {filteredEntries.length}. Download CSV for all records.
+                </p>
+              )}
+            </div>
           )}
 
         </main>
-
       </div>
     </PageContainer>
   );
