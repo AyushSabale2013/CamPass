@@ -39,8 +39,10 @@ const GateJunction = () => {
     const role = user?.role?.toLowerCase() || "";
 
     if (role === "student") {
-      // FIX: Matches your route /student/gate-scanner/:slug safely
-      navigate(`/student/gate-scanner/${slug || "main-gate"}`, { replace: true });
+      // Logged-in students go straight to their dashboard, not the
+      // gate scanner — scanning the gate QR no longer auto-opens the
+      // scan flow for an already-authenticated student.
+      navigate("/student/dashboard", { replace: true });
     } else if (role === "security" || role === "security guard") {
       navigate("/security/dashboard", { replace: true });
     } else if (role === "admin") {
