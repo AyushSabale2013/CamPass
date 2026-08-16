@@ -1,4 +1,4 @@
-// src/pages/gate/GateJunction.jsx
+
 import { useEffect, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -39,10 +39,8 @@ const GateJunction = () => {
     const role = user?.role?.toLowerCase() || "";
 
     if (role === "student") {
-      // Logged-in students go straight to their dashboard, not the
-      // gate scanner — scanning the gate QR no longer auto-opens the
-      // scan flow for an already-authenticated student.
-      navigate("/student/dashboard", { replace: true });
+      // FIX: Matches your route /student/gate-scanner/:slug safely
+      navigate(`/student/gate-scanner/${slug || "main-gate"}`, { replace: true });
     } else if (role === "security" || role === "security guard") {
       navigate("/security/dashboard", { replace: true });
     } else if (role === "admin") {
@@ -59,3 +57,4 @@ const GateJunction = () => {
 };
 
 export default GateJunction;
+
