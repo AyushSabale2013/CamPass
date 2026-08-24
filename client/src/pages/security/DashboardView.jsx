@@ -1,6 +1,6 @@
 import GuardProfileCard from "../../components/security/GuardProfileCard";
 
-const DashboardView = ({ user, guardInitial, setView, setBusDate, getTodayDateStr }) => {
+const DashboardView = ({ user, guardInitial, setView, setBusDate, getTodayDateStr, navigate, pendingCount }) => {
   return (
     <div className="space-y-4">
       {/* Guard Profile Summary Card */}
@@ -8,6 +8,33 @@ const DashboardView = ({ user, guardInitial, setView, setBusDate, getTodayDateSt
 
       {/* Mobile Nav Action Buttons */}
       <div className="space-y-3">
+        {/* NEW: Pending Requests Route Navigation Button */}
+        <button
+          onClick={() => navigate("/security/requests")}
+          className="w-full bg-violet-600 active:bg-violet-700 text-white p-4 rounded-2xl shadow transition-all flex items-center justify-between text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-wider bg-violet-700 text-violet-100 px-2 py-0.5 rounded">
+                Action Required
+              </span>
+              <h3 className="text-base font-black mt-1">Pending Requests</h3>
+              <p className="text-xs text-violet-100">
+                Review and approve student gate requests
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {pendingCount > 0 && (
+              <span className="bg-white text-violet-700 text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                {pendingCount}
+              </span>
+            )}
+            <span className="text-xl font-black">&rarr;</span>
+          </div>
+        </button>
+
         {/* Button 1: Today's Stream */}
         <button
           onClick={() => setView("today")}

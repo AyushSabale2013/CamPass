@@ -6,6 +6,11 @@ import {
   getSecurityLogs,
   getGateJunction,
   getBusLogs,
+  submitGateRequest,
+  getMyRequests,
+  getPendingRequests,
+  approveGateRequest,
+  rejectGateRequest,
 } from "../controllers/gateController.js";
 import { protect, restrictTo } from "../middleware/authMiddleware.js";
 
@@ -19,11 +24,35 @@ router.get("/details/:slug", protect, restrictTo("student"), getGateDetails);
 router.post("/verify", protect, restrictTo("student"), verifyGate);
 router.get("/history", protect, restrictTo("student"), getRecentLogs);
 
-// Security & Admin access (handles both "security" and "security guard")
+// Student — approval workflow
+router.post("/requests", protect, restrictTo("student"), submitGateRequest);
+router.get("/requests/mine", protect, restrictTo("student"), getMyRequests);
+
+// Security & Admin — approval workflow
+router.get(
+  "/requests/pending",
+  protect,
+  restrictTo("security", "admin"),
+  getPendingRequests
+);
+router.post(
+  "/requests/:id/approve",
+  protect,
+  restrictTo("security", "admin"),
+  approveGateRequest
+);
+router.post(
+  "/requests/:id/reject",
+  protect,
+  restrictTo("security", "admin"),
+  rejectGateRequest
+);
+
+// Security & Admin access
 router.get(
   "/security-logs",
   protect,
-  restrictTo("security", "security guard", "admin"),
+  restrictTo("security", "admin"),
   getSecurityLogs
 );
 
@@ -31,7 +60,7 @@ router.get(
 router.get(
   "/bus-logs",
   protect,
-  restrictTo("security", "security guard", "admin"),
+  restrictTo("security", "admin"),
   getBusLogs
 );
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Loader from "../../components/common/Loader";
-import { getSecurityLogs, getBusLogs } from "../../services/gateService";
+import { getSecurityLogs, getBusLogs, getPendingRequests } from "../../services/gateService";
 
 // Import Views
 import DashboardView from "./DashboardView";
@@ -23,12 +24,16 @@ const getTodayDateStr = () => {
 
 const SecurityDashboard = () => {
   const { user, loading, logout } = useAuth();
+  const navigate = useNavigate();
 
   // views: "dashboard" | "today" | "hostelers_outside" | "dayscholars_inside" | "all" | "bus_entries" | "bus_exits"
   const [view, setView] = useState("dashboard");
   const [logs, setLogs] = useState([]);
   const [fetching, setFetching] = useState(false);
   const [total, setTotal] = useState(0);
+
+  // Live pending requests count badge state
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Date filter — only relevant for bus_entries / bus_exits views
   const [busDate, setBusDate] = useState(getTodayDateStr());
@@ -37,6 +42,28 @@ const SecurityDashboard = () => {
 
   // Safe letter extract for guard avatar
   const guardInitial = user?.name ? user.name.trim().charAt(0).toUpperCase() : "S";
+
+  // =========================================================
+  // FETCH PENDING REQUESTS COUNT (FOR BADGE)
+  // =========================================================
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      try {
+        const res = await getPendingRequests();
+        if (res.data?.success) {
+          const reqs = res.data.requests || res.data.data || [];
+          setPendingCount(reqs.length);
+        }
+      } catch (err) {
+        console.error("Failed to fetch pending requests count:", err);
+      }
+    };
+
+    fetchPendingCount();
+    // Optional: Poll every 30 seconds for live updates
+    const interval = setInterval(fetchPendingCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // =========================================================
   // BROWSER BACK-BUTTON INTERCEPTION
@@ -185,6 +212,8 @@ const SecurityDashboard = () => {
             setView={setView}
             setBusDate={setBusDate}
             getTodayDateStr={getTodayDateStr}
+            navigate={navigate}
+            pendingCount={pendingCount}
           />
         )}
 

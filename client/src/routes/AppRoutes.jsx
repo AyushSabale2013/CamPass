@@ -5,9 +5,11 @@ import CompleteProfile from "../pages/auth/CompleteProfile";
 
 import Dashboard from "../pages/student/Dashboard";
 import GateScanner from "../pages/student/GateScanner";
+import RequestGatePass from "../pages/student/RequestGatePass";
 import History from "../pages/student/History";
 
 import SecurityDashboard from "../pages/security/SecurityDashboard";
+import PendingRequestsView from "../pages/security/PendingRequestsView";
 
 // Admin Imports
 import AdminDashboard from "../pages/admin/AdminDashboard";
@@ -53,6 +55,16 @@ const AppRoutes = () => {
         }
       />
 
+      {/* Approval workflow — student submits a request instead of an instant scan */}
+      <Route
+        path="/gate/:slug/request"
+        element={
+          <ProtectedRoute role="student">
+            <RequestGatePass />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/student/history"
         element={
@@ -68,6 +80,16 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute role="security">
             <SecurityDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Approval workflow — security guard's pending-requests queue */}
+      <Route
+        path="/security/requests"
+        element={
+          <ProtectedRoute role="security">
+            <PendingRequestsView />
           </ProtectedRoute>
         }
       />
