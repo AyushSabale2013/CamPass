@@ -147,6 +147,9 @@ const PendingRequestsView = () => {
   // Gate selection state: null = menu, "main" or "godavari" = respective list view
   const [selectedGate, setSelectedGate] = useState(null);
 
+  // Search term for filtering by MIS or student name within a gate view
+  const [searchTerm, setSearchTerm] = useState("");
+
   const fetchRequests = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
     try {
@@ -198,12 +201,29 @@ const PendingRequestsView = () => {
   [requests]);
 
   // Filter requests when inside a specific gate view
-  const filteredRequests = useMemo(() => {
+  const gateRequests = useMemo(() => {
     if (!selectedGate) return [];
     return requests.filter((req) => 
       req.gateName?.toLowerCase().includes(selectedGate)
     );
   }, [requests, selectedGate]);
+
+  // Further filter by search term (matches MIS or student name)
+  const filteredRequests = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return gateRequests;
+    return gateRequests.filter((req) => {
+      const mis = req.student?.mis?.toString().toLowerCase() || "";
+      const name = req.student?.name?.toLowerCase() || "";
+      return mis.includes(term) || name.includes(term);
+    });
+  }, [gateRequests, searchTerm]);
+
+  // Reset search when leaving a gate view
+  const handleBack = () => {
+    setSelectedGate(null);
+    setSearchTerm("");
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
@@ -212,7 +232,7 @@ const PendingRequestsView = () => {
           <button
             onClick={() => {
               if (selectedGate) {
-                setSelectedGate(null);
+                handleBack();
               } else {
                 navigate("/security/dashboard");
               }
@@ -225,6 +245,40 @@ const PendingRequestsView = () => {
             {selectedGate ? `${selectedGate === "main" ? "Main Gate" : "Godavari Gate"} Requests` : "Select Gate"}
           </h1>
         </div>
+
+        {/* Search bar, only visible inside a gate view */}
+        {selectedGate && (
+          <div className="max-w-md mx-auto mt-2.5 relative">
+            <svg
+              className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth="2"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by MIS or name..."
+              className="w-full pl-9 pr-8 py-2 text-xs font-semibold text-slate-900 bg-slate-100 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 focus:bg-white transition-colors"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                aria-label="Clear search"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
       <main className="flex-1 max-w-md w-full mx-auto p-4 space-y-3 pb-12">
@@ -279,7 +333,11 @@ const PendingRequestsView = () => {
           </div>
         ) : filteredRequests.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center shadow-xs border border-slate-200">
-            <p className="text-xs font-semibold text-slate-500">No pending requests for this gate right now.</p>
+            <p className="text-xs font-semibold text-slate-500">
+              {searchTerm
+                ? "No requests match your search."
+                : "No pending requests for this gate right now."}
+            </p>
           </div>
         ) : (
           filteredRequests.map((request) => (
