@@ -12,6 +12,8 @@ import Loader from "../../components/common/Loader";
 
 const NOTE_REASON = "Other";
 const POLL_INTERVAL_MS = 4000;
+const COOLDOWN_MS = 30 * 1000; // 30s between any two requests (entry or exit)
+const TICKET_AUTO_REDIRECT_MS = 5 * 60 * 1000; // 5 min
 
 const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
   const R = 6371000;
@@ -22,6 +24,37 @@ const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const formatClock = (totalSeconds) => {
+  const s = Math.max(0, totalSeconds);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+};
+
+// localStorage is only used as an instant local fallback so the lock/cooldown
+// still work immediately after this tab acts, before the server round-trip
+// on next mount confirms it. The server response (getMyRequests) is always
+// treated as the source of truth on mount.
+const cooldownStorageKey = (userId) => `campass_cooldown_until_${userId || "anon"}`;
+
+const readLocalCooldown = (userId) => {
+  try {
+    const raw = localStorage.getItem(cooldownStorageKey(userId));
+    const until = raw ? parseInt(raw, 10) : 0;
+    return Number.isFinite(until) ? until : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const writeLocalCooldown = (userId, until) => {
+  try {
+    localStorage.setItem(cooldownStorageKey(userId), String(until));
+  } catch {
+    // ignore storage failures (private browsing, quota, etc.)
+  }
 };
 
 // ==========================================
@@ -309,12 +342,11 @@ const ErrorBanner = ({ message }) => (
 );
 
 // ==========================================
-// 3. POPUP MODAL FOR PENDING/RESULT STATE
+// 3. PENDING / REJECTED STATUS MODAL
 // ==========================================
 
 const RequestStatusModal = ({ activeRequest, onExpired, onDone }) => {
   const isPending = activeRequest.status === "PENDING";
-  const isApproved = activeRequest.status === "APPROVED";
 
   const [secondsLeft, setSecondsLeft] = useState(() =>
     isPending ? Math.max(0, Math.ceil((new Date(activeRequest.expiresAt).getTime() - Date.now()) / 1000)) : 0
@@ -332,13 +364,10 @@ const RequestStatusModal = ({ activeRequest, onExpired, onDone }) => {
     return () => clearInterval(timer);
   }, [isPending, activeRequest.expiresAt, onExpired]);
 
-  const minutes = Math.floor(secondsLeft / 60);
-  const seconds = secondsLeft % 60;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs transition-opacity">
       <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-sm overflow-hidden shadow-xl animate-in fade-in zoom-in duration-200 p-6 text-center">
-        
+
         {isPending ? (
           <>
             <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center mx-auto mb-4 animate-pulse">
@@ -356,45 +385,31 @@ const RequestStatusModal = ({ activeRequest, onExpired, onDone }) => {
             </h3>
             <p className="text-xs text-slate-500 mb-4">
               Please wait while the guard verifies your request at {activeRequest.gateName}.
+              {" "}You cannot open another gate&apos;s request page until this is resolved.
             </p>
 
             <div className="mx-auto w-20 h-20 rounded-full border-4 border-amber-500 flex items-center justify-center mb-4 bg-amber-50/50">
-              <span className="text-lg font-black text-amber-700 font-mono">
-                {minutes}:{seconds.toString().padStart(2, "0")}
-              </span>
+              <span className="text-lg font-black text-amber-700 font-mono">{formatClock(secondsLeft)}</span>
             </div>
-            <p className="text-[11px] text-slate-400">Request auto-expires if not reviewed in time.</p>
+            <p className="text-[11px] text-slate-400">Request auto-rejects if not reviewed in time.</p>
           </>
         ) : (
           <>
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${isApproved ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
-              {isApproved ? (
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-              ) : (
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              )}
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-red-50 text-red-700 border border-red-200">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </div>
 
-            <h3 className={`text-base font-bold mb-1 ${isApproved ? "text-emerald-900" : "text-red-900"}`}>
-              {isApproved ? "Request Approved!" : activeRequest.autoRejected ? "Request Timed Out" : "Request Rejected"}
+            <h3 className="text-base font-bold mb-1 text-red-900">
+              {activeRequest.autoRejected ? "Request Timed Out" : "Request Rejected"}
             </h3>
 
-            {isApproved && activeRequest.entryLog && (
-              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 my-3 text-left text-xs">
-                <p className="font-bold text-slate-900">{activeRequest.entryLog.gateName}</p>
-                <p className="text-slate-500 text-[11px] mt-0.5">Status: <span className="font-semibold text-slate-700">{activeRequest.entryLog.status}</span></p>
-              </div>
-            )}
-
-            {!isApproved && (
-              <p className="text-xs text-slate-600 my-2">
-                {activeRequest.autoRejected
-                  ? "Nobody reviewed your request within 5 minutes."
-                  : activeRequest.rejectionNote
-                    ? `Guard note: "${activeRequest.rejectionNote}"`
-                    : "Your gate pass request was declined by security."}
-              </p>
-            )}
+            <p className="text-xs text-slate-600 my-2">
+              {activeRequest.autoRejected
+                ? "Nobody reviewed your request within 5 minutes."
+                : activeRequest.rejectionNote
+                  ? `Guard note: "${activeRequest.rejectionNote}"`
+                  : "Your gate pass request was declined by security."}
+            </p>
 
             <button
               onClick={onDone}
@@ -411,6 +426,138 @@ const RequestStatusModal = ({ activeRequest, onExpired, onDone }) => {
 };
 
 // ==========================================
+// 3b. APPROVED TICKET MODAL
+// ==========================================
+
+const TicketModal = ({ activeRequest, user, onDone }) => {
+  const isExit = activeRequest.action === "EXIT";
+  const ticketDate = new Date(activeRequest.resolvedAt || activeRequest.updatedAt || Date.now());
+
+  const [secondsLeft, setSecondsLeft] = useState(Math.floor(TICKET_AUTO_REDIRECT_MS / 1000));
+
+  useEffect(() => {
+    const deadline = Date.now() + TICKET_AUTO_REDIRECT_MS;
+    const timer = setInterval(() => {
+      const left = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+      setSecondsLeft(left);
+      if (left <= 0) {
+        clearInterval(timer);
+        onDone();
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs transition-opacity">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-sm overflow-hidden shadow-xl animate-in fade-in zoom-in duration-200">
+
+        <div className={`px-6 pt-6 pb-5 text-center ${isExit ? "bg-blue-50" : "bg-emerald-50"} border-b border-slate-200`}>
+          <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center mx-auto mb-3">
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${isExit ? "bg-blue-100 text-blue-800 border border-blue-200" : "bg-emerald-100 text-emerald-800 border border-emerald-200"}`}>
+            {isExit ? "Exit Approved" : "Entry Approved"}
+          </span>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-2 truncate">
+            {user?.name || "Student"}
+          </h1>
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">MIS: {user?.mis || "N/A"}</p>
+        </div>
+
+        <div className="px-6 py-5">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-left">
+            <div>
+              <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Hostel</span>
+              <span className="text-xs font-bold text-slate-800">{user?.hostel || "N/A"}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Room</span>
+              <span className="text-xs font-bold text-slate-800">{user?.room || "N/A"}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Gate</span>
+              <span className="text-xs font-bold text-slate-800">{activeRequest.gateName || "N/A"}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Transport</span>
+              <span className="text-xs font-bold text-slate-800">{activeRequest.transportMode === "SCHOOL_BUS" ? "College Bus" : "Self"}</span>
+            </div>
+            <div className="col-span-2">
+              <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Reason</span>
+              <span className="text-xs font-bold text-slate-800">
+                {activeRequest.reason}
+                {activeRequest.reason === NOTE_REASON && activeRequest.additionalNote ? ` — ${activeRequest.additionalNote}` : ""}
+              </span>
+            </div>
+            <div>
+              <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Date</span>
+              <span className="text-xs font-bold text-slate-800">{ticketDate.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Time</span>
+              <span className="text-xs font-bold text-slate-800">{ticketDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={onDone}
+            className="w-full mt-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all active:scale-98"
+          >
+            Done & Return to Dashboard
+          </button>
+          <p className="text-[11px] text-slate-400 text-center mt-2">
+            Auto-returning to dashboard in <span className="font-mono font-semibold text-slate-500">{formatClock(secondsLeft)}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 3c. 30s COOLDOWN MODAL (between any two requests)
+// ==========================================
+
+const CooldownModal = ({ cooldownUntil, onFinished }) => {
+  const [secondsLeft, setSecondsLeft] = useState(() => Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000)));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const left = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+      setSecondsLeft(left);
+      if (left <= 0) {
+        clearInterval(timer);
+        onFinished();
+      }
+    }, 250);
+    return () => clearInterval(timer);
+  }, [cooldownUntil, onFinished]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs transition-opacity">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-sm p-6 text-center shadow-xl animate-in fade-in zoom-in duration-200">
+        <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-base font-bold text-slate-900 mb-1">Please Wait</h3>
+        <p className="text-xs text-slate-500 mb-4">
+          For security review reasons, you must wait a short moment between requests.
+        </p>
+        <div className="mx-auto w-20 h-20 rounded-full border-4 border-blue-500 flex items-center justify-center bg-blue-50/50">
+          <span className="text-lg font-black text-blue-700 font-mono">{secondsLeft}s</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
 // 4. MAIN CONTAINER COMPONENT
 // ==========================================
 
@@ -418,6 +565,7 @@ const RequestGatePass = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const userId = user?._id || user?.id;
 
   const [now, setNow] = useState(new Date());
   const [gate, setGate] = useState(null);
@@ -436,6 +584,12 @@ const RequestGatePass = () => {
   const [error, setError] = useState("");
 
   const [activeRequest, setActiveRequest] = useState(null);
+
+  // Cross-request-cycle status check: has a request been fetched from the
+  // server yet? Blocks the form (and submit) until we know for sure whether
+  // there's a pending request at ANY gate, or an active cooldown.
+  const [statusChecked, setStatusChecked] = useState(false);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
 
   const pollRef = useRef(null);
   const watchIdRef = useRef(null);
@@ -466,6 +620,52 @@ const RequestGatePass = () => {
     if (slug) loadGate();
     return () => { cancelled = true; };
   }, [slug]);
+
+  // --- CROSS-GATE PENDING LOCK + COOLDOWN CHECK -----------------------------
+  // Runs once auth is known. This is what makes the "one pending request at a
+  // time, across every gate" rule hold even if the student closes this tab,
+  // opens a different gate's link, or refreshes the page mid-flow.
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    let cancelled = false;
+
+    const checkExistingStatus = async () => {
+      // Instant local fallback so the button doesn't flash "enabled" for a
+      // moment before the network call resolves.
+      const localUntil = readLocalCooldown(userId);
+      if (localUntil > Date.now()) setCooldownUntil(localUntil);
+
+      try {
+        const response = await getMyRequests(1);
+        const latest = response.data?.requests?.[0];
+        if (cancelled || !latest) return;
+
+        if (latest.status === "PENDING") {
+          setActiveRequest({ ...latest, autoRejected: false, rejectionNote: latest.rejectionNote || "" });
+          return;
+        }
+
+        // Not pending: figure out if we're still inside the 30s cooldown
+        // window from whenever that request was resolved.
+        const resolvedAtRaw = latest.resolvedAt || latest.updatedAt;
+        if (resolvedAtRaw) {
+          const resolvedAtMs = new Date(resolvedAtRaw).getTime();
+          const until = resolvedAtMs + COOLDOWN_MS;
+          if (!Number.isNaN(until) && until > Date.now()) {
+            setCooldownUntil(until);
+          }
+        }
+      } catch {
+        // If the status check fails, fail safe by NOT blocking the student
+        // indefinitely — but we also don't clear an existing local cooldown.
+      } finally {
+        if (!cancelled) setStatusChecked(true);
+      }
+    };
+
+    checkExistingStatus();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, user, userId]);
 
   useEffect(() => {
     if (!gate) return;
@@ -505,13 +705,11 @@ const RequestGatePass = () => {
     return list.filter((r) => r !== NOTE_REASON);
   }, [isInside, exitReasons, entryReasons]);
 
-  // Frontend Rate limit / Quota checks based on user profile fields
-  const dailyEntryCount = user?.dailyEntryCount || 0;
-  const dailyExitCount = user?.dailyExitCount || 0;
-  const hasReachedLimit = isInside ? dailyExitCount >= 30 : dailyEntryCount >= 30;
+  const cooldownActive = cooldownUntil > Date.now();
 
-  const canSubmit = Boolean(reason) && gpsVerified && !submitting && !hasReachedLimit;
+  const canSubmit = Boolean(reason) && gpsVerified && !submitting && statusChecked && !cooldownActive && !activeRequest;
 
+  // --- POLL WHILE PENDING ----------------------------------------------------
   useEffect(() => {
     if (!activeRequest || activeRequest.status !== "PENDING") {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -523,6 +721,8 @@ const RequestGatePass = () => {
         const response = await getMyRequests(1);
         const latest = response.data.requests?.[0];
         if (latest && latest.id === activeRequest.id && latest.status !== "PENDING") {
+          // Process resolved (approved/rejected) -> stop polling next render
+          // since the effect's guard condition will no longer match PENDING.
           setActiveRequest((prev) => ({ ...prev, ...latest }));
         }
       } catch {
@@ -535,16 +735,20 @@ const RequestGatePass = () => {
 
   const handleSubmit = useCallback(async () => {
     setError("");
+    if (activeRequest) {
+      setError("You already have an active request in progress.");
+      return;
+    }
+    if (cooldownActive) {
+      setError("Please wait for the cooldown to finish before submitting again.");
+      return;
+    }
     if (!reason) {
       setError("Please select a reason before submitting.");
       return;
     }
     if (!gpsVerified || !coords) {
       setError("You must be within the allowed gate radius with active GPS.");
-      return;
-    }
-    if (hasReachedLimit) {
-      setError(isInside ? "You have reached your daily limit of 30 exit passes." : "You have reached your daily limit of 30 entry passes.");
       return;
     }
 
@@ -560,15 +764,34 @@ const RequestGatePass = () => {
       };
       const response = await submitGateRequest(payload);
       const req = response.data.request;
-      setActiveRequest({ ...req, status: "PENDING", autoRejected: false, rejectionNote: "" });
+      setActiveRequest({
+        ...req,
+        gateName: req.gateName || gate?.gateName,
+        reason: req.reason || reason,
+        transportMode: req.transportMode || transportMode,
+        additionalNote: req.additionalNote ?? (reason === NOTE_REASON ? note : undefined),
+        status: "PENDING",
+        autoRejected: false,
+        rejectionNote: "",
+      });
     } catch (err) {
       setError(err.response?.data?.message || "Could not submit request. Please try again.");
     } finally {
       setSubmitting(false);
     }
-  }, [reason, gpsVerified, coords, hasReachedLimit, isInside, slug, note, transportMode]);
+  }, [activeRequest, cooldownActive, reason, gpsVerified, coords, slug, note, transportMode, gate]);
+
+  // Starts a fresh 30s lockout (persisted so it survives navigation/refresh)
+  // any time a request cycle ends, whatever the outcome.
+  const startCooldown = useCallback(() => {
+    const until = Date.now() + COOLDOWN_MS;
+    setCooldownUntil(until);
+    writeLocalCooldown(userId, until);
+  }, [userId]);
 
   const handleExpiredLocally = useCallback(() => {
+    // 5-minute pending timeout with no guard review -> auto-reject and kill
+    // the polling process (guarded by the poll effect's status check).
     setActiveRequest((prev) => (prev ? { ...prev, status: "REJECTED", autoRejected: true } : prev));
   }, []);
 
@@ -576,14 +799,18 @@ const RequestGatePass = () => {
     navigate("/student/dashboard");
   }, [navigate]);
 
+  // Called when the student dismisses a resolved (approved/rejected) request,
+  // OR when the ticket/rejection screen auto-times-out. Kills the process,
+  // starts the 30s cooldown, resets the form, and returns to dashboard.
   const handleDone = useCallback(() => {
+    startCooldown();
     setActiveRequest(null);
     setReason("");
     setNote("");
     navigate("/student/dashboard");
-  }, [navigate]);
+  }, [navigate, startCooldown]);
 
-  if (authLoading || loadingGate) {
+  if (authLoading || loadingGate || (isAuthenticated && !statusChecked)) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <Loader />
@@ -614,6 +841,9 @@ const RequestGatePass = () => {
     );
   }
 
+  const isApproved = activeRequest?.status === "APPROVED";
+  const isResolvedNonApproved = activeRequest && activeRequest.status !== "PENDING" && !isApproved;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       <Header gateName={gate.gateName} now={now} onBack={handleGoToDashboard} />
@@ -624,12 +854,6 @@ const RequestGatePass = () => {
         <CampusStatusCard isInsideCampus={isInside} />
 
         <StudentProfileCard user={user} />
-
-        {hasReachedLimit && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-amber-900 text-xs font-semibold">
-            Daily limit reached ({isInside ? "30/30 Exits" : "30/30 Entries"}). Quota resets tomorrow.
-          </div>
-        )}
 
         <GpsCard
           gpsStatus={gpsStatus}
@@ -668,12 +892,35 @@ const RequestGatePass = () => {
         </button>
       </main>
 
-      {/* Popup Modal for active request timer & status */}
-      {activeRequest && (
+      {/* Pending / rejected popup */}
+      {activeRequest && !isApproved && (
         <RequestStatusModal
           activeRequest={activeRequest}
           onExpired={handleExpiredLocally}
           onDone={handleDone}
+        />
+      )}
+
+      {/* Approved ticket popup */}
+      {activeRequest && isApproved && (
+        <TicketModal
+          activeRequest={activeRequest}
+          user={user}
+          onDone={handleDone}
+        />
+      )}
+
+      {/* 30s cooldown popup, shown whenever no active request is blocking the
+          page but the student is still inside the post-request lockout.
+          When it finishes, send them back to the dashboard rather than
+          silently unblocking the form on stale GPS/reason state. */}
+      {!activeRequest && cooldownActive && (
+        <CooldownModal
+          cooldownUntil={cooldownUntil}
+          onFinished={() => {
+            setCooldownUntil(0);
+            navigate("/student/dashboard");
+          }}
         />
       )}
     </div>
